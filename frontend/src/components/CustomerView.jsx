@@ -12,7 +12,13 @@ import {
   Building2, 
   Award,
   Layers,
-  Film
+  Film,
+  ArrowLeft,
+  ChevronRight,
+  Shirt,
+  Scissors,
+  Box,
+  ArrowRight
 } from 'lucide-react';
 
 // Real Store Showcase Videos (Seamless single-frame playlist)
@@ -211,27 +217,49 @@ export default function CustomerView({ products, onAddToCart, API_BASE_URL, open
     };
   }, []);
 
-  // Primary Sections definition with subcategories requested by user
+  // Safe image URL resolver for localhost and GitHub Pages
+  const getProductImage = (url) => {
+    if (!url) return '';
+    if (url.startsWith('http') || url.startsWith('data:')) return url;
+    if (API_BASE_URL && !window.location.hostname.includes('github.io')) {
+      return `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+    }
+    return url.startsWith('/') ? `.${url}` : `./${url}`;
+  };
+
+  // Primary Sections definition with subcategories, styling & icons
   const primarySections = [
+    {
+      id: 'Bottom Wear',
+      name: 'Bottom Wear',
+      badge: 'Pants • Baggie • Formal • Cargo • Lowers',
+      desc: 'Comfort cotton lowers, trendy flared bootcut jeans, baggy street cargos & royal tailored formal trousers.',
+      icon: Scissors,
+      accentColor: '#38bdf8',
+      accentBg: 'rgba(56, 189, 248, 0.12)',
+      borderColor: 'rgba(56, 189, 248, 0.35)',
+      subcategories: ['All', 'Pants', 'Lowers', 'Bootcut', 'Baggie', 'Cargo', 'Formal Trousers']
+    },
     {
       id: 'Upper Wear',
       name: 'Upper Wear',
       badge: 'Shirts • T-Shirts • Polo • Down Shoulders',
       desc: 'Tailored pure cotton shirts, French linen, heavy drop-shoulder tees & double-knit pique polo shirts.',
+      icon: Shirt,
+      accentColor: '#fbbf24',
+      accentBg: 'rgba(212, 175, 55, 0.12)',
+      borderColor: 'rgba(212, 175, 55, 0.35)',
       subcategories: ['All', 'Shirts', 'T-Shirts', 'Polo', 'Down Shoulder']
     },
     {
-      id: 'Bottom Wear',
-      name: 'Bottom Wear',
-      badge: 'Pants • Lowers • Bootcut • Baggie • Formal',
-      desc: 'Comfort cotton lowers, trendy flared bootcut jeans, baggy street cargos & royal tailored formal trousers.',
-      subcategories: ['All', 'Pants', 'Lowers', 'Bootcut', 'Baggie', 'Formal Trousers']
-    },
-    {
       id: 'Under Garments',
-      name: 'Under Garments',
-      badge: 'Underwear • Vests • Socks • Hankey',
+      name: 'Undergarments',
+      badge: 'Underwear • Vests • Socks • Hankey Sets',
       desc: 'Combed cotton anti-chafing trunks, 1x1 ribbed inner vests, cushioned bamboo socks & pure Egyptian cotton hankey sets.',
+      icon: Box,
+      accentColor: '#c084fc',
+      accentBg: 'rgba(192, 132, 252, 0.12)',
+      borderColor: 'rgba(192, 132, 252, 0.35)',
       subcategories: ['All', 'Underwear', 'Vests', 'Socks', 'Hankey']
     }
   ];
@@ -285,8 +313,9 @@ export default function CustomerView({ products, onAddToCart, API_BASE_URL, open
     if (s === 'pants') return combined.includes('pant') || combined.includes('trouser');
     if (s === 'lowers') return combined.includes('lower') || combined.includes('trackpant') || combined.includes('jogger');
     if (s === 'bootcut') return combined.includes('bootcut');
-    if (s === 'baggie' || s === 'baggy') return combined.includes('baggie') || combined.includes('baggy');
-    if (s === 'formal trousers') return combined.includes('formal') || combined.includes('trouser');
+    if (s === 'baggie' || s === 'baggy') return combined.includes('baggie') || combined.includes('baggy') || combined.includes('cargo');
+    if (s === 'cargo') return combined.includes('cargo');
+    if (s === 'formal trousers' || s === 'formal') return combined.includes('formal') || combined.includes('trouser');
 
     if (s === 'underwear') return combined.includes('underwear') || combined.includes('trunk') || combined.includes('brief') || combined.includes('boxer');
     if (s === 'vests') return combined.includes('vest') || combined.includes('inner');
@@ -417,10 +446,486 @@ export default function CustomerView({ products, onAddToCart, API_BASE_URL, open
     }, 450);
   };
 
+  // Reusable Luxury Garment Card Component
+  const renderProductCard = (product) => {
+    const totalStock = product.stock?.reduce((acc, curr) => acc + (parseInt(curr.quantity) || 0), 0) || 0;
+    const finalPrice = product.discount_percent > 0 
+      ? Math.max(1, Math.round(product.price * (1 - product.discount_percent / 100))) 
+      : product.price;
+
+    return (
+      <div key={product.id} className="glass-card product-card" onClick={() => openProductModal(product)}>
+        <div className="product-image-container">
+          {product.image_url ? (
+            <img src={getProductImage(product.image_url)} alt={product.name} />
+          ) : (
+            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#121216' }}>
+              <ShoppingBag size={48} color="#333" />
+            </div>
+          )}
+          {totalStock === 0 ? (
+            <span className="badge badge-danger" style={{ position: 'absolute', top: '1rem', left: '1rem', zIndex: 2 }}>Sold Out</span>
+          ) : product.discount_percent > 0 ? (
+            <span style={{ 
+              position: 'absolute', 
+              top: '1rem', 
+              left: '1rem',
+              background: 'linear-gradient(135deg, #d4af37, #b8860b)',
+              color: '#000',
+              fontWeight: 800,
+              fontSize: '0.72rem',
+              padding: '0.2rem 0.5rem',
+              borderRadius: '4px',
+              letterSpacing: '0.04em',
+              boxShadow: '0 4px 12px rgba(212, 175, 55, 0.45)',
+              zIndex: 2
+            }}>
+              {product.discount_percent}% OFF
+            </span>
+          ) : null}
+        </div>
+        
+        <div className="product-info">
+          <span className="product-category">{getProductPrimarySection(product)}</span>
+          <h3 className="product-title">{product.name}</h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1rem', display: '-webkit-box', WebkitLineClamp: '2', WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+            {product.description || 'No description available.'}
+          </p>
+
+          <div className="product-meta-row">
+            {product.discount_percent > 0 ? (
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.45rem' }}>
+                <span className="product-price">
+                  ₹{finalPrice.toLocaleString('en-IN')}
+                </span>
+                <span style={{ fontSize: '0.82rem', textDecoration: 'line-through', color: 'var(--text-muted)' }}>
+                  ₹{product.price.toLocaleString('en-IN')}
+                </span>
+              </div>
+            ) : (
+              <span className="product-price">₹{product.price.toLocaleString('en-IN')}</span>
+            )}
+            
+            {/* Display color dots */}
+            <div className="color-indicator-dots">
+              {Array.from(new Set(product.stock?.map(s => s.color.trim()))).slice(0, 4).map((color, idx) => (
+                <span 
+                  key={idx} 
+                  className="color-dot" 
+                  style={{ 
+                    backgroundColor: getColorHex(color),
+                    border: '1px solid rgba(255, 255, 255, 0.4)'
+                  }} 
+                  title={color}
+                />
+              ))}
+              {new Set(product.stock?.map(s => s.color)).size > 4 && (
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>+</span>
+              )}
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.25rem' }}>
+            <button 
+              type="button" 
+              onClick={(e) => {
+                e.stopPropagation();
+                openProductModal(product);
+              }}
+              className="btn-secondary" 
+              style={{ flex: 1, padding: '0.65rem 0.4rem', fontSize: '0.82rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}
+            >
+              <Eye size={15} /> Details
+            </button>
+            <button 
+              type="button"
+              disabled={totalStock === 0}
+              onClick={(e) => handleQuickAddToCart(e, product)}
+              className="btn-primary" 
+              style={{ flex: 1.3, padding: '0.65rem 0.4rem', fontSize: '0.82rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}
+            >
+              <ShoppingBag size={15} /> Add to Cart
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const currentSection = primarySections.find(s => s.id === selectedCategory);
+
   return (
     <div className="animate-fade-in">
-      {/* Hero Section */}
-      <section className="hero">
+      {/* ========================================================================= */}
+      {/* VIEW A: DEDICATED DEPARTMENT PAGE (Bottom Wear, Upper Wear, Undergarments) */}
+      {/* ========================================================================= */}
+      {selectedCategory !== 'All' && currentSection ? (
+        <div className="container" style={{ padding: '2rem 1rem 6rem 1rem' }}>
+          {/* Breadcrumb Navigation Bar & Department Switcher */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '1rem',
+            marginBottom: '2rem',
+            paddingBottom: '1.25rem',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.08)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedCategory('All');
+                  setSelectedSubCategory('All');
+                  setSearchQuery('');
+                  setSelectedColorFilter('All');
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="btn-secondary"
+                style={{
+                  padding: '0.5rem 1.15rem',
+                  fontSize: '0.85rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  borderRadius: '100px',
+                  borderColor: 'rgba(212, 175, 55, 0.4)'
+                }}
+              >
+                <ArrowLeft size={16} /> Back to Flagship Showroom
+              </button>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                <span 
+                  onClick={() => { setSelectedCategory('All'); setSelectedSubCategory('All'); }}
+                  style={{ cursor: 'pointer', transition: 'color 0.2s' }}
+                  onMouseEnter={(e) => e.target.style.color = '#fff'}
+                  onMouseLeave={(e) => e.target.style.color = 'var(--text-muted)'}
+                >
+                  Home
+                </span>
+                <ChevronRight size={14} />
+                <span>Collections</span>
+                <ChevronRight size={14} />
+                <span style={{ color: currentSection.accentColor || 'var(--accent-gold)', fontWeight: 600 }}>
+                  {currentSection.name}
+                </span>
+              </div>
+            </div>
+
+            {/* Department Quick Switcher Pills */}
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginRight: '0.25rem' }}>Switch Section:</span>
+              {primarySections.map(s => {
+                const isCurrent = s.id === selectedCategory;
+                const SecIcon = s.icon || Shirt;
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedCategory(s.id);
+                      setSelectedSubCategory('All');
+                      setSearchQuery('');
+                      setSelectedColorFilter('All');
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    style={{
+                      background: isCurrent ? s.accentBg : 'rgba(255, 255, 255, 0.04)',
+                      color: isCurrent ? s.accentColor : 'var(--text-muted)',
+                      border: isCurrent ? `1.5px solid ${s.accentColor}` : '1px solid rgba(255, 255, 255, 0.08)',
+                      padding: '0.4rem 0.9rem',
+                      borderRadius: '100px',
+                      fontSize: '0.8rem',
+                      fontWeight: isCurrent ? 700 : 500,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.45rem',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <SecIcon size={14} />
+                    {s.name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Dedicated Department Hero Banner */}
+          <div 
+            className="glass-card" 
+            style={{
+              padding: '3rem 2.5rem',
+              borderRadius: '24px',
+              marginBottom: '2.5rem',
+              border: `1.5px solid ${currentSection.borderColor}`,
+              background: `radial-gradient(ellipse at top right, ${currentSection.accentBg}, rgba(18, 18, 22, 0.85) 70%)`,
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.4)'
+            }}
+          >
+            <div style={{ maxWidth: '850px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+                <span 
+                  className="badge" 
+                  style={{ 
+                    background: currentSection.accentBg, 
+                    color: currentSection.accentColor, 
+                    borderColor: currentSection.borderColor,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.45rem',
+                    fontWeight: 700,
+                    letterSpacing: '0.5px'
+                  }}
+                >
+                  {React.createElement(currentSection.icon || Shirt, { size: 14 })}
+                  {currentSection.name.toUpperCase()} DEPARTMENT
+                </span>
+                <span style={{
+                  background: 'rgba(255, 255, 255, 0.06)',
+                  color: 'var(--text-muted)',
+                  padding: '3px 12px',
+                  borderRadius: '100px',
+                  fontSize: '0.78rem',
+                  fontWeight: 600
+                }}>
+                  {products.filter(p => getProductPrimarySection(p) === currentSection.id).length} Designs Available
+                </span>
+              </div>
+
+              <h1 className="font-serif" style={{ fontSize: '2.8rem', marginBottom: '0.75rem', color: '#fff', lineHeight: 1.15 }}>
+                {currentSection.name} <span style={{ color: currentSection.accentColor }}>Collection</span>
+              </h1>
+
+              <p style={{ color: 'rgba(255, 255, 255, 0.78)', fontSize: '1.05rem', lineHeight: '1.6', marginBottom: '1.5rem', maxWidth: '720px' }}>
+                {currentSection.desc}
+              </p>
+
+              {/* Quick style overview chips */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>Available Styles:</span>
+                {currentSection.subcategories.filter(s => s !== 'All').map(sub => (
+                  <span
+                    key={sub}
+                    onClick={() => setSelectedSubCategory(sub)}
+                    style={{
+                      background: selectedSubCategory === sub ? currentSection.accentColor : 'rgba(255, 255, 255, 0.08)',
+                      color: selectedSubCategory === sub ? '#000' : 'rgba(255, 255, 255, 0.9)',
+                      padding: '4px 12px',
+                      borderRadius: '8px',
+                      fontSize: '0.78rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    {sub}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Style Subcategory Filter Tabs & Search Bar */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '1rem',
+            marginBottom: '2rem',
+            background: 'rgba(255, 255, 255, 0.02)',
+            padding: '1rem 1.25rem',
+            borderRadius: '16px',
+            border: '1px solid rgba(255, 255, 255, 0.06)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 600, marginRight: '0.25rem' }}>
+                Filter Style:
+              </span>
+              {currentSection.subcategories.map(sub => (
+                <button
+                  key={sub}
+                  type="button"
+                  onClick={() => setSelectedSubCategory(sub)}
+                  style={{
+                    background: selectedSubCategory === sub ? currentSection.accentColor : 'rgba(255, 255, 255, 0.04)',
+                    color: selectedSubCategory === sub ? '#000' : 'var(--text-main)',
+                    border: selectedSubCategory === sub ? `1px solid ${currentSection.accentColor}` : '1px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: '100px',
+                    padding: '6px 16px',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  {sub === 'All' ? `All ${currentSection.name}` : sub}
+                </button>
+              ))}
+            </div>
+
+            {/* Search & Color inside Department */}
+            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              <div style={{ position: 'relative', width: '220px' }}>
+                <Search size={16} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                <input
+                  type="text"
+                  placeholder={`Search in ${currentSection.name}...`}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="form-control"
+                  style={{ paddingLeft: '2.2rem', paddingRight: '0.75rem', height: '38px', fontSize: '0.82rem' }}
+                />
+              </div>
+
+              <select 
+                value={selectedColorFilter} 
+                onChange={(e) => setSelectedColorFilter(e.target.value)} 
+                className="form-control"
+                style={{ width: 'auto', minWidth: '130px', height: '38px', fontSize: '0.82rem' }}
+              >
+                <option value="All">All Colors</option>
+                {allUniqueColors.map(color => (
+                  <option key={color} value={color}>{color}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Section Results Count */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', padding: '0 0.25rem' }}>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', margin: 0 }}>
+              Showing <strong style={{ color: '#fff' }}>{filteredProducts.length}</strong> {selectedSubCategory === 'All' ? currentSection.name : selectedSubCategory} garments
+            </p>
+
+            {(selectedSubCategory !== 'All' || searchQuery || selectedColorFilter !== 'All') && (
+              <button
+                type="button"
+                onClick={() => { setSelectedSubCategory('All'); setSearchQuery(''); setSelectedColorFilter('All'); }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--accent-gold)',
+                  fontSize: '0.82rem',
+                  cursor: 'pointer',
+                  textDecoration: 'underline'
+                }}
+              >
+                Reset Filters
+              </button>
+            )}
+          </div>
+
+          {/* Product Grid */}
+          {filteredProducts.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '5rem 0', border: '1px dashed var(--border-light)', borderRadius: '16px', background: 'rgba(255, 255, 255, 0.01)' }}>
+              <Scissors size={40} color="var(--text-muted)" style={{ marginBottom: '1rem', opacity: 0.5 }} />
+              <h3 className="font-serif" style={{ fontSize: '1.4rem', marginBottom: '0.5rem' }}>No garments found</h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.92rem', marginBottom: '1.5rem' }}>
+                No items match your active filters in {currentSection.name}.
+              </p>
+              <button 
+                type="button"
+                onClick={() => { setSelectedSubCategory('All'); setSearchQuery(''); setSelectedColorFilter('All'); }}
+                className="btn-secondary"
+                style={{ borderRadius: '100px' }}
+              >
+                Clear Filters
+              </button>
+            </div>
+          ) : (
+            <div className="products-grid">
+              {filteredProducts.map(product => renderProductCard(product))}
+            </div>
+          )}
+
+          {/* Bottom Exploration Banner */}
+          <div style={{
+            marginTop: '5rem',
+            padding: '2.5rem',
+            borderRadius: '20px',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            background: 'rgba(255, 255, 255, 0.02)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '1.5rem'
+          }}>
+            <div>
+              <span className="badge badge-gold" style={{ marginBottom: '0.5rem', display: 'inline-block' }}>COMPLETE YOUR WARDROBE</span>
+              <h3 className="font-serif" style={{ fontSize: '1.5rem', marginBottom: '0.35rem' }}>
+                Explore Other Showroom Departments
+              </h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', margin: 0 }}>
+                Check out our handpicked collections across Upper Wear, Bottom Wear, and Undergarments.
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+              {primarySections.filter(s => s.id !== selectedCategory).map(s => {
+                const SIcon = s.icon || Shirt;
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedCategory(s.id);
+                      setSelectedSubCategory('All');
+                      setSearchQuery('');
+                      setSelectedColorFilter('All');
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className="btn-secondary"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      fontSize: '0.85rem',
+                      padding: '0.65rem 1.25rem',
+                      borderRadius: '100px'
+                    }}
+                  >
+                    <SIcon size={15} /> Go to {s.name} →
+                  </button>
+                );
+              })}
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedCategory('All');
+                  setSelectedSubCategory('All');
+                  setSearchQuery('');
+                  setSelectedColorFilter('All');
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="btn-primary"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  fontSize: '0.85rem',
+                  padding: '0.65rem 1.25rem',
+                  borderRadius: '100px'
+                }}
+              >
+                <ArrowLeft size={15} /> Flagship Home
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* ========================================================================= */}
+          {/* VIEW B: MAIN FLAGSHIP SHOWROOM HOME */}
+          {/* ========================================================================= */}
+          {/* Hero Section */}
+          <section className="hero">
         <div className="container">
           <div className="hero-grid">
             <div className="hero-content">
@@ -659,43 +1164,63 @@ export default function CustomerView({ products, onAddToCart, API_BASE_URL, open
           }}>
             {primarySections.map(sec => {
               const count = products.filter(p => getProductPrimarySection(p) === sec.id).length;
-              const isSelected = selectedCategory === sec.id;
+              const SecIcon = sec.icon || Shirt;
               
               return (
                 <div
                   key={sec.id}
                   onClick={() => {
-                    if (selectedCategory === sec.id) {
-                      setSelectedCategory('All');
-                      setSelectedSubCategory('All');
-                    } else {
-                      setSelectedCategory(sec.id);
-                      setSelectedSubCategory('All');
-                    }
-                    const el = document.getElementById('shop-section');
-                    if (el) el.scrollIntoView({ behavior: 'smooth' });
+                    setSelectedCategory(sec.id);
+                    setSelectedSubCategory('All');
+                    setSearchQuery('');
+                    setSelectedColorFilter('All');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
                   className="glass-card"
                   style={{
-                    padding: '2rem 1.75rem',
-                    borderRadius: '16px',
+                    padding: '2.25rem 2rem',
+                    borderRadius: '20px',
                     cursor: 'pointer',
-                    border: isSelected ? '2px solid var(--accent-gold)' : '1px solid rgba(212, 175, 55, 0.25)',
-                    background: isSelected ? 'rgba(212, 175, 55, 0.08)' : 'rgba(255, 255, 255, 0.02)',
-                    transition: 'all 0.3s ease',
-                    boxShadow: isSelected ? '0 10px 30px rgba(212, 175, 55, 0.2)' : 'none',
+                    border: `1.5px solid ${sec.borderColor}`,
+                    background: 'rgba(255, 255, 255, 0.02)',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                     display: 'flex',
                     flexDirection: 'column',
-                    justifyContent: 'space-between'
+                    justifyContent: 'space-between',
+                    position: 'relative',
+                    overflow: 'hidden'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = sec.accentColor;
+                    e.currentTarget.style.transform = 'translateY(-5px)';
+                    e.currentTarget.style.boxShadow = `0 18px 40px ${sec.accentBg}`;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = sec.borderColor;
+                    e.currentTarget.style.transform = 'none';
+                    e.currentTarget.style.boxShadow = 'none';
                   }}
                 >
                   <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-                      <span className="badge badge-gold" style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.5px' }}>DEPARTMENT</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                      <div style={{
+                        width: '46px',
+                        height: '46px',
+                        borderRadius: '12px',
+                        background: sec.accentBg,
+                        color: sec.accentColor,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        border: `1px solid ${sec.borderColor}`
+                      }}>
+                        <SecIcon size={22} />
+                      </div>
                       <span style={{
-                        background: 'rgba(212, 175, 55, 0.15)',
-                        color: 'var(--accent-gold)',
-                        padding: '4px 10px',
+                        background: sec.accentBg,
+                        color: sec.accentColor,
+                        border: `1px solid ${sec.borderColor}`,
+                        padding: '4px 12px',
                         borderRadius: '100px',
                         fontSize: '0.75rem',
                         fontWeight: 700
@@ -704,20 +1229,20 @@ export default function CustomerView({ products, onAddToCart, API_BASE_URL, open
                       </span>
                     </div>
 
-                    <h3 className="font-serif" style={{ fontSize: '1.5rem', marginBottom: '0.4rem', color: '#fff' }}>
+                    <h3 className="font-serif" style={{ fontSize: '1.65rem', marginBottom: '0.45rem', color: '#fff' }}>
                       {sec.name}
                     </h3>
 
                     <div style={{
-                      color: 'var(--accent-gold)',
-                      fontSize: '0.8rem',
+                      color: sec.accentColor,
+                      fontSize: '0.82rem',
                       fontWeight: 600,
                       marginBottom: '0.85rem'
                     }}>
                       {sec.badge}
                     </div>
 
-                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: '1.55', marginBottom: '1.5rem' }}>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', lineHeight: '1.6', marginBottom: '1.75rem' }}>
                       {sec.desc}
                     </p>
                   </div>
@@ -726,14 +1251,14 @@ export default function CustomerView({ products, onAddToCart, API_BASE_URL, open
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    paddingTop: '1rem',
+                    paddingTop: '1.25rem',
                     borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-                    fontSize: '0.85rem',
+                    fontSize: '0.88rem',
                     fontWeight: 700,
-                    color: isSelected ? 'var(--accent-gold)' : '#fff'
+                    color: sec.accentColor
                   }}>
-                    <span>{isSelected ? 'Viewing This Department' : `Explore ${sec.name}`}</span>
-                    <span>→</span>
+                    <span>Open {sec.name} Page</span>
+                    <ArrowRight size={16} />
                   </div>
                 </div>
               );
@@ -742,18 +1267,19 @@ export default function CustomerView({ products, onAddToCart, API_BASE_URL, open
         </div>
       </section>
 
-      {/* Main Shop Section */}
+      {/* Main Shop Section on Home */}
       <section id="shop-section" style={{ padding: '3.5rem 0 5rem 0' }}>
         <div className="container">
           <div style={{ marginBottom: '2.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '1.5rem' }}>
             <div>
+              <span className="badge badge-gold" style={{ marginBottom: '0.5rem', display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}>
+                <Sparkles size={13} /> Complete Store Catalog
+              </span>
               <h2 className="font-serif" style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>
-                {selectedCategory === 'All' ? 'All Garments' : selectedCategory}
+                All Garments
               </h2>
               <p style={{ color: 'var(--text-muted)' }}>
-                {selectedCategory === 'All' 
-                  ? 'Showing all items across Upper Wear, Bottom Wear, and Under Garments.'
-                  : primarySections.find(s => s.id === selectedCategory)?.desc}
+                Showing all items across Upper Wear, Bottom Wear, and Undergarments. Click any department above to open its dedicated page.
               </p>
             </div>
 
@@ -786,62 +1312,6 @@ export default function CustomerView({ products, onAddToCart, API_BASE_URL, open
             </div>
           </div>
 
-          {/* Subcategory Style Filter Chips (Only visible when a department is selected) */}
-          {selectedCategory !== 'All' && (
-            <div style={{
-              display: 'flex',
-              gap: '0.5rem',
-              flexWrap: 'wrap',
-              marginBottom: '2.5rem',
-              alignItems: 'center',
-              background: 'rgba(255, 255, 255, 0.02)',
-              padding: '0.75rem 1rem',
-              borderRadius: '12px',
-              border: '1px solid rgba(255, 255, 255, 0.06)'
-            }}>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600, marginRight: '0.5rem' }}>
-                Styles in {selectedCategory}:
-              </span>
-              {primarySections.find(s => s.id === selectedCategory)?.subcategories.map(sub => (
-                <button
-                  key={sub}
-                  onClick={() => setSelectedSubCategory(sub)}
-                  style={{
-                    background: selectedSubCategory === sub ? 'var(--accent-gold)' : 'rgba(255, 255, 255, 0.05)',
-                    color: selectedSubCategory === sub ? '#000' : 'var(--text-main)',
-                    border: selectedSubCategory === sub ? '1px solid var(--accent-gold)' : '1px solid rgba(255, 255, 255, 0.1)',
-                    borderRadius: '100px',
-                    padding: '5px 14px',
-                    fontSize: '0.78rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease'
-                  }}
-                >
-                  {sub}
-                </button>
-              ))}
-
-              <button
-                onClick={() => { setSelectedCategory('All'); setSelectedSubCategory('All'); }}
-                style={{
-                  marginLeft: 'auto',
-                  background: 'transparent',
-                  color: 'var(--text-muted)',
-                  border: '1px dashed rgba(255, 255, 255, 0.2)',
-                  borderRadius: '100px',
-                  padding: '4px 12px',
-                  fontSize: '0.75rem',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease'
-                }}
-                title="View all garments from all departments"
-              >
-                Clear Filter (Show All)
-              </button>
-            </div>
-          )}
-
           {/* Products Grid */}
           {filteredProducts.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '5rem 0', border: '1px dashed var(--border-light)', borderRadius: '16px' }}>
@@ -849,112 +1319,13 @@ export default function CustomerView({ products, onAddToCart, API_BASE_URL, open
             </div>
           ) : (
             <div className="products-grid">
-              {filteredProducts.map(product => {
-                // Calculate if out of stock
-                const totalStock = product.stock?.reduce((acc, curr) => acc + curr.quantity, 0) || 0;
-                
-                return (
-                  <div key={product.id} className="glass-card product-card" onClick={() => openProductModal(product)}>
-                    <div className="product-image-container">
-                      {product.image_url ? (
-                        <img src={`${API_BASE_URL}${product.image_url}`} alt={product.name} />
-                      ) : (
-                        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#121216' }}>
-                          <ShoppingBag size={48} color="#333" />
-                        </div>
-                      )}
-                      {totalStock === 0 ? (
-                        <span className="badge badge-danger" style={{ position: 'absolute', top: '1rem', left: '1rem' }}>Sold Out</span>
-                      ) : product.discount_percent > 0 ? (
-                        <span style={{ 
-                          position: 'absolute', 
-                          top: '1rem', 
-                          left: '1rem',
-                          background: 'linear-gradient(135deg, #d4af37, #b8860b)',
-                          color: '#000',
-                          fontWeight: 800,
-                          fontSize: '0.72rem',
-                          padding: '0.2rem 0.5rem',
-                          borderRadius: '4px',
-                          letterSpacing: '0.04em',
-                          boxShadow: '0 4px 12px rgba(212, 175, 55, 0.45)',
-                          zIndex: 2
-                        }}>
-                          {product.discount_percent}% OFF
-                        </span>
-                      ) : null}
-                    </div>
-                    
-                    <div className="product-info">
-                      <span className="product-category">{getProductPrimarySection(product)}</span>
-                      <h3 className="product-title">{product.name}</h3>
-                      <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1rem', display: '-webkit-box', WebkitLineClamp: '2', WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                        {product.description || 'No description available.'}
-                      </p>
-
-                      <div className="product-meta-row">
-                        {product.discount_percent > 0 ? (
-                          <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.45rem' }}>
-                            <span className="product-price">
-                              ₹{Math.max(1, Math.round(product.price * (1 - product.discount_percent / 100))).toLocaleString('en-IN')}
-                            </span>
-                            <span style={{ fontSize: '0.82rem', textDecoration: 'line-through', color: 'var(--text-muted)' }}>
-                              ₹{product.price.toLocaleString('en-IN')}
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="product-price">₹{product.price.toLocaleString('en-IN')}</span>
-                        )}
-                        
-                        {/* Display color dots */}
-                        <div className="color-indicator-dots">
-                          {Array.from(new Set(product.stock?.map(s => s.color.trim()))).slice(0, 4).map((color, idx) => (
-                            <span 
-                              key={idx} 
-                              className="color-dot" 
-                              style={{ 
-                                backgroundColor: getColorHex(color),
-                                border: '1px solid rgba(255, 255, 255, 0.4)'
-                              }} 
-                              title={color}
-                            />
-                          ))}
-                          {new Set(product.stock?.map(s => s.color)).size > 4 && (
-                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>+</span>
-                          )}
-                        </div>
-                      </div>
-
-                      <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.25rem' }}>
-                        <button 
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openProductModal(product);
-                          }}
-                          className="btn-secondary" 
-                          style={{ flex: 1, padding: '0.65rem 0.4rem', fontSize: '0.82rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}
-                        >
-                          <Eye size={15} /> Details
-                        </button>
-                        <button 
-                          type="button"
-                          disabled={totalStock === 0}
-                          onClick={(e) => handleQuickAddToCart(e, product)}
-                          className="btn-primary" 
-                          style={{ flex: 1.3, padding: '0.65rem 0.4rem', fontSize: '0.82rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}
-                        >
-                          <ShoppingBag size={15} /> Add to Cart
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+              {filteredProducts.map(product => renderProductCard(product))}
             </div>
           )}
         </div>
       </section>
+    </>
+  )}
 
       {/* Product Details Modal */}
       {selectedProduct && (
@@ -968,7 +1339,7 @@ export default function CustomerView({ products, onAddToCart, API_BASE_URL, open
               {/* Product Image */}
               <div className="product-detail-image">
                 {selectedProduct.image_url ? (
-                  <img src={`${API_BASE_URL}${selectedProduct.image_url}`} alt={selectedProduct.name} />
+                  <img src={getProductImage(selectedProduct.image_url)} alt={selectedProduct.name} />
                 ) : (
                   <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#121216' }}>
                     <ShoppingBag size={80} color="#333" />
