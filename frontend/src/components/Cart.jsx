@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Trash2, CreditCard, ShoppingBag, Truck, CheckCircle, ArrowLeft, Wallet, Gift, Sparkles } from 'lucide-react';
+import { safeFetch, isStaticMode, localWalletManager } from '../utils/apiHelper';
 
 export default function Cart({ isOpen, onClose, cartItems, onUpdateQuantity, onRemoveItem, onClearCart, API_BASE_URL, currentUser, walletBalance = 0, onOrderSuccessCallback }) {
   const [checkoutMode, setCheckoutMode] = useState(false);
@@ -42,9 +43,9 @@ export default function Cart({ isOpen, onClose, cartItems, onUpdateQuantity, onR
       let orderId = null;
       let cashback = 0;
 
-      if (API_BASE_URL && !window.location.hostname.includes('github.io')) {
+      if (API_BASE_URL && !isStaticMode()) {
         try {
-          const response = await fetch(`${API_BASE_URL}/api/orders`, {
+          const res = await safeFetch(`${API_BASE_URL}/api/orders`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
@@ -63,11 +64,10 @@ export default function Cart({ isOpen, onClose, cartItems, onUpdateQuantity, onR
             })
           });
 
-          if (response.ok) {
-            const data = await response.json();
+          if (res.ok && res.data) {
             orderPlaced = true;
-            orderId = data.orderId;
-            cashback = data.cashbackEarned || 0;
+            orderId = res.data.orderId;
+            cashback = res.data.cashbackEarned || 0;
           }
         } catch (err) {
           console.warn('API call failed, falling back to local storage order placement');
@@ -86,6 +86,7 @@ export default function Cart({ isOpen, onClose, cartItems, onUpdateQuantity, onR
           customer_address: customerAddress,
           payment_method: paymentMethod,
           total_amount: finalPayable,
+          wallet_used: walletDiscount,
           items: cartItems,
           payment_ref: paymentRef || null,
           order_status: 'Received',
@@ -94,6 +95,16 @@ export default function Cart({ isOpen, onClose, cartItems, onUpdateQuantity, onR
         };
         const existingOrders = JSON.parse(localStorage.getItem('veer_admin_orders') || '[]');
         localStorage.setItem('veer_admin_orders', JSON.stringify([newOrder, ...existingOrders]));
+
+        // Handle wallet debit and cashback locally on static mode
+        if (currentUser?.email) {
+          if (walletDiscount > 0) {
+            localWalletManager.debitWallet(currentUser.email, walletDiscount, `Redeemed on Order #${orderId}`);
+          }
+          if (cashback > 0) {
+            localWalletManager.creditWallet(currentUser.email, cashback, `5% Cashback for Order #${orderId}`);
+          }
+        }
         orderPlaced = true;
       }
 

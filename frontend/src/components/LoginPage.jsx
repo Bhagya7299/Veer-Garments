@@ -16,6 +16,7 @@ import {
   ArrowLeft,
   RefreshCw
 } from 'lucide-react';
+import { safeFetch, isStaticMode } from '../utils/apiHelper';
 
 export default function LoginPage({ onLoginSuccess, API_BASE_URL, onOpenAdmin }) {
   const [activeTab, setActiveTab] = useState('login'); // 'login' or 'register'
@@ -81,7 +82,22 @@ export default function LoginPage({ onLoginSuccess, API_BASE_URL, onOpenAdmin })
 
     setIsLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
+      if (isStaticMode()) {
+        const demoUser = {
+          id: 1,
+          name: loginIdentifier.includes('@') ? loginIdentifier.split('@')[0] : 'Veer Member',
+          email: loginIdentifier.includes('@') ? loginIdentifier : 'client@veer.com',
+          phone: !loginIdentifier.includes('@') ? loginIdentifier : '9827332721',
+          role: 'customer'
+        };
+        setSuccessMessage('Welcome to Veer Garments Showcase!');
+        setTimeout(() => {
+          onLoginSuccess(demoUser, rememberMe);
+        }, 600);
+        return;
+      }
+
+      const res = await safeFetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -92,10 +108,8 @@ export default function LoginPage({ onLoginSuccess, API_BASE_URL, onOpenAdmin })
         })
       });
 
-      const data = await res.json();
-
       if (!res.ok) {
-        if (window.location.hostname.includes('github.io') || res.status === 404) {
+        if (res.isHtml || res.status === 404) {
           const demoUser = {
             id: 1,
             name: loginIdentifier.includes('@') ? loginIdentifier.split('@')[0] : 'Veer Member',
@@ -109,15 +123,15 @@ export default function LoginPage({ onLoginSuccess, API_BASE_URL, onOpenAdmin })
           }, 600);
           return;
         }
-        throw new Error(data.error || 'Failed to login. Please check your credentials.');
+        throw new Error((res.data && res.data.error) || 'Failed to login. Please check your credentials.');
       }
 
       setSuccessMessage('Welcome back! Loading Veer Garments...');
       setTimeout(() => {
-        onLoginSuccess(data.user, rememberMe);
+        onLoginSuccess(res.data.user, rememberMe);
       }, 600);
     } catch (err) {
-      if (window.location.hostname.includes('github.io')) {
+      if (isStaticMode()) {
         const demoUser = {
           id: 1,
           name: loginIdentifier.includes('@') ? loginIdentifier.split('@')[0] : 'Veer Member',
@@ -174,26 +188,39 @@ export default function LoginPage({ onLoginSuccess, API_BASE_URL, onOpenAdmin })
 
     setIsLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/auth/send-otp`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ 
-          phone: cleanPhone, 
-          email: regEmail.trim() 
-        })
-      });
+      let otpDispatched = false;
+      let msg = null;
 
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to send OTP to mobile or email');
+      if (API_BASE_URL && !isStaticMode()) {
+        const res = await safeFetch(`${API_BASE_URL}/api/auth/send-otp`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ 
+            phone: cleanPhone, 
+            email: regEmail.trim() 
+          })
+        });
+
+        if (res.ok && res.data) {
+          otpDispatched = true;
+          msg = res.data.message;
+        } else if (!res.isHtml && res.data?.error) {
+          throw new Error(res.data.error);
+        }
+      }
+
+      if (!otpDispatched) {
+        // Fallback for static showcase / GitHub Pages
+        otpDispatched = true;
+        msg = `Showcase Mode: OTP sent! Use 123456 to verify.`;
       }
 
       setRegStep('otp');
       setCountdown(45);
       setOtpValue(''); // Always blank - user must enter from received SMS/Email
-      setSuccessMessage(data.message || `Verification OTP sent to +91 ${cleanPhone}`);
+      setSuccessMessage(msg || `Verification OTP sent to +91 ${cleanPhone}`);
     } catch (err) {
       setErrorMessage(err.message);
     } finally {
@@ -217,29 +244,50 @@ export default function LoginPage({ onLoginSuccess, API_BASE_URL, onOpenAdmin })
 
     setIsLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/auth/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
+      let registered = false;
+      let userData = null;
+
+      if (API_BASE_URL && !isStaticMode()) {
+        const res = await safeFetch(`${API_BASE_URL}/api/auth/register`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            name: regName.trim(),
+            email: regEmail.trim(),
+            phone: cleanPhone,
+            password: regPassword,
+            otp: cleanOtp
+          })
+        });
+
+        if (res.ok && res.data) {
+          registered = true;
+          userData = res.data.user;
+        } else if (!res.isHtml && res.data?.error) {
+          throw new Error(res.data.error);
+        }
+      }
+
+      if (!registered) {
+        // Fallback for static showcase / GitHub Pages
+        userData = {
+          id: Date.now(),
           name: regName.trim(),
           email: regEmail.trim(),
           phone: cleanPhone,
-          password: regPassword,
-          otp: cleanOtp
-        })
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Registration failed. Please check OTP.');
+          role: 'customer'
+        };
+        const users = JSON.parse(localStorage.getItem('veer_local_users') || '[]');
+        users.push(userData);
+        localStorage.setItem('veer_local_users', JSON.stringify(users));
+        registered = true;
       }
 
       setSuccessMessage('Mobile verified & Account created! Entering store...');
       setTimeout(() => {
-        onLoginSuccess(data.user, true);
+        onLoginSuccess(userData, true);
       }, 700);
     } catch (err) {
       setErrorMessage(err.message);
@@ -256,21 +304,19 @@ export default function LoginPage({ onLoginSuccess, API_BASE_URL, onOpenAdmin })
     setIsLoading(true);
     try {
       const cleanPhone = regPhone.replace(/\D/g, '').slice(-10);
-      const res = await fetch(`${API_BASE_URL}/api/auth/send-otp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          phone: cleanPhone, 
-          email: regEmail.trim() 
-        })
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to resend OTP');
+      if (API_BASE_URL && !isStaticMode()) {
+        await safeFetch(`${API_BASE_URL}/api/auth/send-otp`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            phone: cleanPhone, 
+            email: regEmail.trim() 
+          })
+        });
       }
       setCountdown(45);
       setOtpValue(''); // Always blank
-      setSuccessMessage(data.message || `New OTP dispatched to +91 ${cleanPhone}`);
+      setSuccessMessage(`Showcase Mode: New OTP dispatched to +91 ${cleanPhone} (Use 123456)`);
     } catch (err) {
       setErrorMessage(err.message);
     } finally {

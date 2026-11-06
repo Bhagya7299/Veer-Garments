@@ -29,6 +29,7 @@ import AdminPanel from './components/AdminPanel';
 import Cart from './components/Cart';
 import LoginPage from './components/LoginPage';
 import AddMoneyModal from './components/AddMoneyModal';
+import { safeFetch, isStaticMode, localWalletManager } from './utils/apiHelper';
 
 const API_BASE_URL = typeof window !== 'undefined' && (window.location.port === '5174' || window.location.port === '5173')
   ? `http://${window.location.hostname}:5001`
@@ -151,12 +152,11 @@ export default function App() {
     setLoading(true);
     try {
       let loaded = false;
-      if (API_BASE_URL && !window.location.hostname.includes('github.io')) {
+      if (API_BASE_URL && !isStaticMode()) {
         try {
-          const prodRes = await fetch(`${API_BASE_URL}/api/products`);
-          if (prodRes.ok) {
-            const prodData = await prodRes.json();
-            setProducts(prodData);
+          const prodRes = await safeFetch(`${API_BASE_URL}/api/products`);
+          if (prodRes.ok && prodRes.data) {
+            setProducts(prodRes.data);
             loaded = true;
           }
         } catch (e) {
@@ -167,9 +167,9 @@ export default function App() {
       // If backend not reached or on static GitHub Pages, load static products.json
       if (!loaded) {
         try {
-          const staticRes = await fetch('./products.json');
-          if (staticRes.ok) {
-            const staticData = await staticRes.json();
+          const staticRes = await safeFetch('./products.json');
+          if (staticRes.ok && Array.isArray(staticRes.data)) {
+            const staticData = staticRes.data;
             const localProducts = JSON.parse(localStorage.getItem('veer_local_products') || '[]');
             const localStockOverrides = JSON.parse(localStorage.getItem('veer_local_stock') || '{}');
             const localDiscountOverrides = JSON.parse(localStorage.getItem('veer_local_discounts') || '{}');
@@ -204,14 +204,13 @@ export default function App() {
       const adminPass = sessionStorage.getItem('admin_pass');
       if (adminPass === 'admin123') {
         let ordLoaded = false;
-        if (API_BASE_URL && !window.location.hostname.includes('github.io')) {
+        if (API_BASE_URL && !isStaticMode()) {
           try {
-            const ordRes = await fetch(`${API_BASE_URL}/api/orders`, {
+            const ordRes = await safeFetch(`${API_BASE_URL}/api/orders`, {
               headers: { 'x-admin-password': adminPass }
             });
-            if (ordRes.ok) {
-              const ordData = await ordRes.json();
-              setOrders(ordData);
+            if (ordRes.ok && ordRes.data) {
+              setOrders(ordRes.data);
               ordLoaded = true;
             }
           } catch (e) {}
@@ -222,9 +221,9 @@ export default function App() {
             setOrders(savedOrders);
           } else {
             try {
-              const initOrdRes = await fetch('./initial_orders.json');
-              if (initOrdRes.ok) {
-                const initOrdData = await initOrdRes.json();
+              const initOrdRes = await safeFetch('./initial_orders.json');
+              if (initOrdRes.ok && Array.isArray(initOrdRes.data)) {
+                const initOrdData = initOrdRes.data;
                 setOrders(initOrdData);
                 localStorage.setItem('veer_admin_orders', JSON.stringify(initOrdData));
               }
@@ -248,17 +247,30 @@ export default function App() {
     if (!currentUser) return;
     setLoadingWallet(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/wallet?userId=${currentUser.id || ''}&email=${encodeURIComponent(currentUser.email || '')}`);
-      if (res.ok) {
-        const data = await res.json();
-        setWalletBalance(data.balance || 0);
-        setWalletTransactions(data.transactions || []);
+      let loaded = false;
+      if (API_BASE_URL && !isStaticMode()) {
+        const res = await safeFetch(`${API_BASE_URL}/api/wallet?userId=${currentUser.id || ''}&email=${encodeURIComponent(currentUser.email || '')}`);
+        if (res.ok && res.data) {
+          setWalletBalance(res.data.balance || 0);
+          setWalletTransactions(res.data.transactions || []);
+          loaded = true;
+        }
+
+        const reqRes = await safeFetch(`${API_BASE_URL}/api/wallet/my-requests?userId=${currentUser.id || ''}&email=${encodeURIComponent(currentUser.email || '')}`);
+        if (reqRes.ok && reqRes.data && Array.isArray(reqRes.data)) {
+          setUserTopupRequests(reqRes.data);
+        }
       }
-      // Also fetch pending top-up requests
-      const reqRes = await fetch(`${API_BASE_URL}/api/wallet/my-requests?userId=${currentUser.id || ''}&email=${encodeURIComponent(currentUser.email || '')}`);
-      if (reqRes.ok) {
-        const reqData = await reqRes.json();
-        setUserTopupRequests(reqData);
+
+      if (!loaded) {
+        // Fallback for static showcase / GitHub Pages
+        const localWallet = localWalletManager.getWallet(currentUser.email);
+        setWalletBalance(localWallet.balance || 0);
+        setWalletTransactions(localWallet.transactions || []);
+        
+        const allRequests = localWalletManager.getTopupRequests();
+        const myRequests = allRequests.filter(r => (r.email || '').toLowerCase() === (currentUser.email || '').toLowerCase());
+        setUserTopupRequests(myRequests);
       }
     } catch (err) {
       console.error('Failed to load wallet:', err);
@@ -272,10 +284,23 @@ export default function App() {
     if (!currentUser) return;
     setLoadingUserOrders(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/user/orders?userId=${currentUser.id || ''}&email=${encodeURIComponent(currentUser.email || '')}`);
-      if (res.ok) {
-        const data = await res.json();
-        setUserOrders(data);
+      let loaded = false;
+      if (API_BASE_URL && !isStaticMode()) {
+        const res = await safeFetch(`${API_BASE_URL}/api/user/orders?userId=${currentUser.id || ''}&email=${encodeURIComponent(currentUser.email || '')}`);
+        if (res.ok && Array.isArray(res.data)) {
+          setUserOrders(res.data);
+          loaded = true;
+        }
+      }
+
+      if (!loaded) {
+        // Fallback for static showcase: filter from localStorage orders
+        const savedOrders = JSON.parse(localStorage.getItem('veer_admin_orders') || '[]');
+        const myOrders = savedOrders.filter(o => 
+          (o.customer_email || '').toLowerCase() === (currentUser.email || '').toLowerCase() ||
+          (o.customer_phone || '').includes(currentUser.phone || '')
+        );
+        setUserOrders(myOrders);
       }
     } catch (err) {
       console.error('Failed to fetch user orders:', err);
@@ -312,15 +337,13 @@ export default function App() {
 
     // 2. Fetch latest cart from database for this specific user
     const fetchDbCart = async () => {
+      if (isStaticMode() || !API_BASE_URL) return;
       try {
-        const res = await fetch(`${API_BASE_URL}/api/cart?userId=${currentUser.id || ''}&email=${encodeURIComponent(currentUser.email || '')}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data.items)) {
-            setCart(data.items);
-            if (key) {
-              localStorage.setItem(key, JSON.stringify(data.items));
-            }
+        const res = await safeFetch(`${API_BASE_URL}/api/cart?userId=${currentUser.id || ''}&email=${encodeURIComponent(currentUser.email || '')}`);
+        if (res.ok && res.data && Array.isArray(res.data.items)) {
+          setCart(res.data.items);
+          if (key) {
+            localStorage.setItem(key, JSON.stringify(res.data.items));
           }
         }
       } catch (e) {
@@ -340,8 +363,8 @@ export default function App() {
       localStorage.setItem(key, JSON.stringify(newCart));
     }
 
-    if (currentUser && (currentUser.id || currentUser.email)) {
-      fetch(`${API_BASE_URL}/api/cart`, {
+    if (currentUser && (currentUser.id || currentUser.email) && !isStaticMode() && API_BASE_URL) {
+      safeFetch(`${API_BASE_URL}/api/cart`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -394,8 +417,8 @@ export default function App() {
     if (key) {
       localStorage.removeItem(key);
     }
-    if (currentUser && (currentUser.id || currentUser.email)) {
-      fetch(`${API_BASE_URL}/api/cart?userId=${currentUser.id || ''}&email=${encodeURIComponent(currentUser.email || '')}`, {
+    if (currentUser && (currentUser.id || currentUser.email) && !isStaticMode() && API_BASE_URL) {
+      safeFetch(`${API_BASE_URL}/api/cart?userId=${currentUser.id || ''}&email=${encodeURIComponent(currentUser.email || '')}`, {
         method: 'DELETE'
       }).catch(() => {});
     }

@@ -10,6 +10,7 @@ import {
   ArrowRight,
   AlertCircle
 } from 'lucide-react';
+import { safeFetch, isStaticMode, localWalletManager } from '../utils/apiHelper';
 
 export default function AddMoneyModal({ isOpen, onClose, currentUser, API_BASE_URL, currentBalance = 0, onSuccess }) {
   const [amount, setAmount] = useState('500');
@@ -53,28 +54,49 @@ export default function AddMoneyModal({ isOpen, onClose, currentUser, API_BASE_U
 
     setIsSubmitting(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/wallet/request-topup`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      let requestSubmitted = false;
+      let requestId = null;
+
+      if (API_BASE_URL && !isStaticMode()) {
+        const res = await safeFetch(`${API_BASE_URL}/api/wallet/request-topup`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: currentUser?.id,
+            email: currentUser?.email,
+            customerName: (senderName || currentUser?.name || '').trim(),
+            amount: numericAmount,
+            paymentMethod: 'UPI',
+            paymentRef: utrNumber.trim()
+          })
+        });
+
+        if (res.ok && res.data) {
+          requestSubmitted = true;
+          requestId = res.data.request?.id || Date.now();
+        } else if (!res.isHtml && res.data?.error) {
+          throw new Error(res.data.error);
+        }
+      }
+
+      if (!requestSubmitted) {
+        // Fallback for static showcase / GitHub Pages
+        const localReq = localWalletManager.createTopupRequest({
           userId: currentUser?.id,
           email: currentUser?.email,
           customerName: (senderName || currentUser?.name || '').trim(),
           amount: numericAmount,
           paymentMethod: 'UPI',
           paymentRef: utrNumber.trim()
-        })
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to submit top-up request');
+        });
+        requestId = localReq.id;
+        requestSubmitted = true;
       }
 
       setSubmittedData({
         amount: numericAmount,
         utr: utrNumber.trim(),
-        requestId: data.request?.id || Date.now()
+        requestId: requestId
       });
 
       if (onSuccess) {

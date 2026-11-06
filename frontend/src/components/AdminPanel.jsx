@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Package, Edit, Trash2, ShoppingBag, DollarSign, List, Layers, Shield, RefreshCw, Wallet, Check, X, User, Phone, Mail, MapPin, Calendar, Hash, Search, Tag, Percent } from 'lucide-react';
+import { safeFetch, isStaticMode, localWalletManager } from '../utils/apiHelper';
 
 export default function AdminPanel({ products, orders, onRefreshData, API_BASE_URL, onBackToStore }) {
   const [adminPassword, setAdminPassword] = useState('');
@@ -47,12 +48,21 @@ export default function AdminPanel({ products, orders, onRefreshData, API_BASE_U
   const fetchWalletRequests = async (pass) => {
     setLoadingWalletRequests(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/admin/wallet-requests`, {
-        headers: { 'x-admin-password': pass || adminPassword || 'admin123' }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setWalletRequests(data);
+      let loaded = false;
+      if (API_BASE_URL && !isStaticMode()) {
+        const res = await safeFetch(`${API_BASE_URL}/api/admin/wallet-requests`, {
+          headers: { 'x-admin-password': pass || adminPassword || 'admin123' }
+        });
+        if (res.ok && Array.isArray(res.data)) {
+          setWalletRequests(res.data);
+          loaded = true;
+        }
+      }
+
+      if (!loaded) {
+        // Fallback for static showcase / GitHub Pages
+        const localRequests = localWalletManager.getTopupRequests();
+        setWalletRequests(localRequests);
       }
     } catch (err) {
       console.error('Failed to load wallet requests:', err);
@@ -64,13 +74,26 @@ export default function AdminPanel({ products, orders, onRefreshData, API_BASE_U
   const handleApproveTopup = async (id) => {
     if (!window.confirm('Have you verified receipt of this payment in your UPI / Bank account?')) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/api/admin/wallet-requests/${id}/approve`, {
-        method: 'POST',
-        headers: { 'x-admin-password': adminPassword || 'admin123' }
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to approve');
-      alert(data.message || 'Approved & credited!');
+      let approved = false;
+      if (API_BASE_URL && !isStaticMode()) {
+        const res = await safeFetch(`${API_BASE_URL}/api/admin/wallet-requests/${id}/approve`, {
+          method: 'POST',
+          headers: { 'x-admin-password': adminPassword || 'admin123' }
+        });
+        if (res.ok && res.data) {
+          approved = true;
+          alert(res.data.message || 'Approved & credited!');
+        } else if (!res.isHtml && res.data?.error) {
+          throw new Error(res.data.error);
+        }
+      }
+
+      if (!approved) {
+        // Fallback for static showcase / GitHub Pages
+        localWalletManager.approveTopupRequest(id);
+        alert('Approved & credited to customer wallet!');
+      }
+
       fetchWalletRequests();
       if (onRefreshData) onRefreshData();
     } catch (err) {
@@ -82,17 +105,30 @@ export default function AdminPanel({ products, orders, onRefreshData, API_BASE_U
     const reason = window.prompt('Reason for rejection:', 'Payment not received in bank account / Invalid UTR');
     if (!reason) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/api/admin/wallet-requests/${id}/reject`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-admin-password': adminPassword || 'admin123'
-        },
-        body: JSON.stringify({ reason })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to reject');
-      alert(data.message || 'Rejected');
+      let rejected = false;
+      if (API_BASE_URL && !isStaticMode()) {
+        const res = await safeFetch(`${API_BASE_URL}/api/admin/wallet-requests/${id}/reject`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-admin-password': adminPassword || 'admin123'
+          },
+          body: JSON.stringify({ reason })
+        });
+        if (res.ok && res.data) {
+          rejected = true;
+          alert(res.data.message || 'Rejected');
+        } else if (!res.isHtml && res.data?.error) {
+          throw new Error(res.data.error);
+        }
+      }
+
+      if (!rejected) {
+        // Fallback for static showcase / GitHub Pages
+        localWalletManager.rejectTopupRequest(id, reason);
+        alert('Rejected');
+      }
+
       fetchWalletRequests();
     } catch (err) {
       alert(err.message);
