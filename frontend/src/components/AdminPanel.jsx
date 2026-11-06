@@ -338,18 +338,30 @@ export default function AdminPanel({ products, orders, onRefreshData, API_BASE_U
     const effectivePass = adminPassword || sessionStorage.getItem('admin_pass') || 'admin123';
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/orders/${orderId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-admin-password': effectivePass
-        },
-        body: JSON.stringify({ orderStatus, paymentStatus })
-      });
+      let updated = false;
+      if (API_BASE_URL && !window.location.hostname.includes('github.io')) {
+        try {
+          const response = await fetch(`${API_BASE_URL}/api/orders/${orderId}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-admin-password': effectivePass
+            },
+            body: JSON.stringify({ orderStatus, paymentStatus })
+          });
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to update order');
+          if (response.ok) {
+            updated = true;
+          }
+        } catch (err) {}
+      }
+
+      if (!updated) {
+        // Fallback for static showcase: update localStorage orders
+        const savedOrders = JSON.parse(localStorage.getItem('veer_admin_orders') || '[]');
+        const updatedList = savedOrders.map(o => o.id === orderId ? { ...o, order_status: orderStatus, payment_status: paymentStatus } : o);
+        localStorage.setItem('veer_admin_orders', JSON.stringify(updatedList));
+        updated = true;
       }
 
       alert('Order status updated successfully');

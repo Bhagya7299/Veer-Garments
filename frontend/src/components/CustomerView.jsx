@@ -19,7 +19,7 @@ import {
 const STORE_VIDEOS = [
   {
     id: 'space_zoom',
-    url: '/videos/zoom_from_space.mp4',
+    url: './videos/zoom_from_space.mp4',
     title: 'Zoom From Space to Flagship Storefront',
     subtitle: 'Manak Chowk Main Road, Ratlam (M.P.)',
     badge: '1. SATELLITE ZOOM',
@@ -27,7 +27,7 @@ const STORE_VIDEOS = [
   },
   {
     id: 'walkin',
-    url: '/videos/veergarments_walkin.mp4',
+    url: './videos/veergarments_walkin.mp4',
     title: 'Grand Showroom Walk-In Tour',
     subtitle: 'Suits, Sherwanis, Shirts & Racks',
     badge: '2. SHOWROOM WALK-IN',

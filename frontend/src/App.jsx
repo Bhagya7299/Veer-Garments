@@ -32,7 +32,7 @@ import AddMoneyModal from './components/AddMoneyModal';
 
 const API_BASE_URL = typeof window !== 'undefined' && (window.location.port === '5174' || window.location.port === '5173')
   ? `http://${window.location.hostname}:5001`
-  : '';
+  : (typeof window !== 'undefined' && window.location.hostname.includes('github.io') ? '.' : '');
 
 // Isolated localStorage key per user account
 const getCartStorageKey = (user) => {
@@ -150,20 +150,63 @@ export default function App() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const prodRes = await fetch(`${API_BASE_URL}/api/products`);
-      if (prodRes.ok) {
-        const prodData = await prodRes.json();
-        setProducts(prodData);
+      let loaded = false;
+      if (API_BASE_URL && !window.location.hostname.includes('github.io')) {
+        try {
+          const prodRes = await fetch(`${API_BASE_URL}/api/products`);
+          if (prodRes.ok) {
+            const prodData = await prodRes.json();
+            setProducts(prodData);
+            loaded = true;
+          }
+        } catch (e) {
+          console.warn('Backend API unavailable, falling back to static products.json');
+        }
+      }
+
+      // If backend not reached or on static GitHub Pages, load static products.json
+      if (!loaded) {
+        try {
+          const staticRes = await fetch('./products.json');
+          if (staticRes.ok) {
+            const staticData = await staticRes.json();
+            const localProducts = JSON.parse(localStorage.getItem('veer_local_products') || '[]');
+            setProducts([...localProducts, ...staticData]);
+          }
+        } catch (err) {
+          console.error('Could not load static products.json:', err);
+        }
       }
 
       const adminPass = sessionStorage.getItem('admin_pass');
       if (adminPass === 'admin123') {
-        const ordRes = await fetch(`${API_BASE_URL}/api/orders`, {
-          headers: { 'x-admin-password': adminPass }
-        });
-        if (ordRes.ok) {
-          const ordData = await ordRes.json();
-          setOrders(ordData);
+        let ordLoaded = false;
+        if (API_BASE_URL && !window.location.hostname.includes('github.io')) {
+          try {
+            const ordRes = await fetch(`${API_BASE_URL}/api/orders`, {
+              headers: { 'x-admin-password': adminPass }
+            });
+            if (ordRes.ok) {
+              const ordData = await ordRes.json();
+              setOrders(ordData);
+              ordLoaded = true;
+            }
+          } catch (e) {}
+        }
+        if (!ordLoaded) {
+          const savedOrders = JSON.parse(localStorage.getItem('veer_admin_orders') || 'null');
+          if (savedOrders) {
+            setOrders(savedOrders);
+          } else {
+            try {
+              const initOrdRes = await fetch('./initial_orders.json');
+              if (initOrdRes.ok) {
+                const initOrdData = await initOrdRes.json();
+                setOrders(initOrdData);
+                localStorage.setItem('veer_admin_orders', JSON.stringify(initOrdData));
+              }
+            } catch (e) {}
+          }
         }
       }
     } catch (error) {

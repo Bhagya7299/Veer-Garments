@@ -95,6 +95,20 @@ export default function LoginPage({ onLoginSuccess, API_BASE_URL, onOpenAdmin })
       const data = await res.json();
 
       if (!res.ok) {
+        if (window.location.hostname.includes('github.io') || res.status === 404) {
+          const demoUser = {
+            id: 1,
+            name: loginIdentifier.includes('@') ? loginIdentifier.split('@')[0] : 'Veer Member',
+            email: loginIdentifier.includes('@') ? loginIdentifier : 'client@veer.com',
+            phone: !loginIdentifier.includes('@') ? loginIdentifier : '9827332721',
+            role: 'customer'
+          };
+          setSuccessMessage('Welcome to Veer Garments Showcase!');
+          setTimeout(() => {
+            onLoginSuccess(demoUser, rememberMe);
+          }, 600);
+          return;
+        }
         throw new Error(data.error || 'Failed to login. Please check your credentials.');
       }
 
@@ -103,6 +117,20 @@ export default function LoginPage({ onLoginSuccess, API_BASE_URL, onOpenAdmin })
         onLoginSuccess(data.user, rememberMe);
       }, 600);
     } catch (err) {
+      if (window.location.hostname.includes('github.io')) {
+        const demoUser = {
+          id: 1,
+          name: loginIdentifier.includes('@') ? loginIdentifier.split('@')[0] : 'Veer Member',
+          email: loginIdentifier.includes('@') ? loginIdentifier : 'client@veer.com',
+          phone: !loginIdentifier.includes('@') ? loginIdentifier : '9827332721',
+          role: 'customer'
+        };
+        setSuccessMessage('Welcome to Veer Garments Showcase!');
+        setTimeout(() => {
+          onLoginSuccess(demoUser, rememberMe);
+        }, 600);
+        return;
+      }
       setErrorMessage(err.message);
     } finally {
       setIsLoading(false);

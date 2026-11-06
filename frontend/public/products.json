@@ -1,0 +1,472 @@
+[
+  {
+    "id": 6,
+    "name": "Heavyweight Oversized Down Shoulder Tee",
+    "description": "Streetwear drop-shoulder relaxed silhouette crafted from 240 GSM heavy combed cotton. Preshrunk fabric with ribbed crew neck collar.",
+    "price": 999,
+    "category": "Upper Wear",
+    "image_url": "/uploads/downshoulder_tee.jpg",
+    "created_at": "2026-10-31 21:09:42",
+    "discount_percent": 0,
+    "stock": [
+      {
+        "color": "Beige",
+        "size": "L",
+        "quantity": 15
+      },
+      {
+        "color": "Beige",
+        "size": "M",
+        "quantity": 18
+      },
+      {
+        "color": "Black",
+        "size": "L",
+        "quantity": 25
+      },
+      {
+        "color": "Black",
+        "size": "M",
+        "quantity": 20
+      },
+      {
+        "color": "Charcoal",
+        "size": "L",
+        "quantity": 20
+      },
+      {
+        "color": "Charcoal",
+        "size": "M",
+        "quantity": 15
+      },
+      {
+        "color": "Charcoal",
+        "size": "XL",
+        "quantity": 12
+      }
+    ]
+  },
+  {
+    "id": 7,
+    "name": "Pure Combed Cotton Trunk Underwear (Pack of 2)",
+    "description": "Zero-friction breathable stretch combed cotton trunks with anti-roll jacquard microfiber waistband. Moisture-wicking daily comfort.",
+    "price": 499,
+    "category": "Under Garments",
+    "image_url": "/uploads/cotton_trunks.jpg",
+    "created_at": "2026-10-31 21:09:42",
+    "discount_percent": 0,
+    "stock": [
+      {
+        "color": "Charcoal",
+        "size": "L",
+        "quantity": 35
+      },
+      {
+        "color": "Charcoal",
+        "size": "M",
+        "quantity": 25
+      },
+      {
+        "color": "Charcoal",
+        "size": "XL",
+        "quantity": 20
+      },
+      {
+        "color": "Navy Blue",
+        "size": "L",
+        "quantity": 40
+      },
+      {
+        "color": "Navy Blue",
+        "size": "M",
+        "quantity": 30
+      },
+      {
+        "color": "Navy Blue",
+        "size": "XL",
+        "quantity": 25
+      }
+    ]
+  },
+  {
+    "id": 8,
+    "name": "Classic Pique Cotton Polo T-Shirt",
+    "description": "Heritage double-knit pique cotton polo featuring crisp collar, 2-button placket, and tailored sleeve cuffs. Perfect for smart casual luxury.",
+    "price": 1199,
+    "category": "Upper Wear",
+    "image_url": "/uploads/polo_tshirt.jpg",
+    "created_at": "2026-10-31 21:09:42",
+    "discount_percent": 0,
+    "stock": [
+      {
+        "color": "Forest Green",
+        "size": "L",
+        "quantity": 18
+      },
+      {
+        "color": "Forest Green",
+        "size": "M",
+        "quantity": 15
+      },
+      {
+        "color": "Navy Blue",
+        "size": "L",
+        "quantity": 22
+      },
+      {
+        "color": "Navy Blue",
+        "size": "M",
+        "quantity": 20
+      },
+      {
+        "color": "White",
+        "size": "L",
+        "quantity": 18
+      },
+      {
+        "color": "White",
+        "size": "M",
+        "quantity": 16
+      }
+    ]
+  },
+  {
+    "id": 9,
+    "name": "Cushioned Bamboo Cotton Ankle Socks (Pack of 3)",
+    "description": "Anti-odor, thermo-regulating organic bamboo cotton ankle socks with terry cushion footbed and seamless hand-linked toe closure.",
+    "price": 349,
+    "category": "Under Garments",
+    "image_url": "/uploads/ankle_socks.jpg",
+    "created_at": "2026-10-31 21:09:42",
+    "discount_percent": 0,
+    "stock": [
+      {
+        "color": "Black",
+        "size": "Free Size",
+        "quantity": 45
+      },
+      {
+        "color": "Grey",
+        "size": "Free Size",
+        "quantity": 35
+      },
+      {
+        "color": "White",
+        "size": "Free Size",
+        "quantity": 45
+      }
+    ]
+  },
+  {
+    "id": 10,
+    "name": "Pure Egyptian Cotton Hankey Set (Pack of 6)",
+    "description": "Ultra-soft premium 100% Egyptian cotton gentlemans handkerchief set with subtle satin corded borders. Generous 45cm x 45cm size.",
+    "price": 299,
+    "category": "Under Garments",
+    "image_url": "/uploads/cotton_hankey.jpg",
+    "created_at": "2026-10-31 21:09:42",
+    "discount_percent": 0,
+    "stock": [
+      {
+        "color": "White",
+        "size": "Standard",
+        "quantity": 60
+      }
+    ]
+  },
+  {
+    "id": 11,
+    "name": "Baggy Fit Streetwear Denim / Baggie Cargo",
+    "description": "Wide-leg baggy fit denim cargo trousers with utility pockets, reinforced stitch lines, and heavy-duty brass hardware. Authentic street fashion.",
+    "price": 1499,
+    "category": "Bottom Wear",
+    "image_url": "/uploads/baggy_cargo_pants.jpg",
+    "created_at": "2026-10-31 21:09:42",
+    "discount_percent": 0,
+    "stock": [
+      {
+        "color": "Black",
+        "size": "30",
+        "quantity": 15
+      },
+      {
+        "color": "Black",
+        "size": "32",
+        "quantity": 20
+      },
+      {
+        "color": "Black",
+        "size": "34",
+        "quantity": 16
+      },
+      {
+        "color": "Denim Blue",
+        "size": "30",
+        "quantity": 12
+      },
+      {
+        "color": "Denim Blue",
+        "size": "32",
+        "quantity": 18
+      },
+      {
+        "color": "Denim Blue",
+        "size": "34",
+        "quantity": 15
+      }
+    ]
+  },
+  {
+    "id": 12,
+    "name": "Cotton Rich Everyday Comfort Lowers / Trackpants",
+    "description": "Ultra-soft breathable French terry cotton lowers with deep zippered side pockets, elasticated drawstring waistband, and tapered ankle cuffs.",
+    "price": 899,
+    "category": "Bottom Wear",
+    "image_url": "/uploads/comfort_lowers.jpg",
+    "created_at": "2026-10-31 21:09:42",
+    "discount_percent": 0,
+    "stock": [
+      {
+        "color": "Black",
+        "size": "L",
+        "quantity": 30
+      },
+      {
+        "color": "Black",
+        "size": "M",
+        "quantity": 25
+      },
+      {
+        "color": "Black",
+        "size": "XL",
+        "quantity": 20
+      },
+      {
+        "color": "Melange Grey",
+        "size": "L",
+        "quantity": 25
+      },
+      {
+        "color": "Melange Grey",
+        "size": "M",
+        "quantity": 20
+      },
+      {
+        "color": "Melange Grey",
+        "size": "XL",
+        "quantity": 15
+      },
+      {
+        "color": "Navy Blue",
+        "size": "L",
+        "quantity": 20
+      },
+      {
+        "color": "Navy Blue",
+        "size": "M",
+        "quantity": 15
+      }
+    ]
+  },
+  {
+    "id": 13,
+    "name": "Royal Tailored Formal Trousers",
+    "description": "Wrinkle-resistant wool-blend formal dress trousers with expandable flex-waistband, French fly, and sharp permanent crease. Executive styling.",
+    "price": 1299,
+    "category": "Bottom Wear",
+    "image_url": "/uploads/formal_trousers.jpg",
+    "created_at": "2026-10-31 21:09:42",
+    "discount_percent": 0,
+    "stock": [
+      {
+        "color": "Charcoal Grey",
+        "size": "30",
+        "quantity": 15
+      },
+      {
+        "color": "Charcoal Grey",
+        "size": "32",
+        "quantity": 20
+      },
+      {
+        "color": "Charcoal Grey",
+        "size": "34",
+        "quantity": 18
+      },
+      {
+        "color": "Charcoal Grey",
+        "size": "36",
+        "quantity": 10
+      },
+      {
+        "color": "Jet Black",
+        "size": "30",
+        "quantity": 15
+      },
+      {
+        "color": "Jet Black",
+        "size": "32",
+        "quantity": 22
+      },
+      {
+        "color": "Jet Black",
+        "size": "34",
+        "quantity": 18
+      },
+      {
+        "color": "Navy Blue",
+        "size": "32",
+        "quantity": 15
+      },
+      {
+        "color": "Navy Blue",
+        "size": "34",
+        "quantity": 15
+      }
+    ]
+  },
+  {
+    "id": 14,
+    "name": "Ribbed 100% Cotton Gym & Daily Vest (Pack of 2)",
+    "description": "Classic 1x1 rib knitted contoured inner vest in pure combed cotton. Extra long cut to stay tucked in with reinforced armholes and neck binding.",
+    "price": 349,
+    "category": "Under Garments",
+    "image_url": "/uploads/cotton_vest.jpg",
+    "created_at": "2026-10-31 21:09:42",
+    "discount_percent": 0,
+    "stock": [
+      {
+        "color": "Black",
+        "size": "L",
+        "quantity": 35
+      },
+      {
+        "color": "Black",
+        "size": "M",
+        "quantity": 30
+      },
+      {
+        "color": "Black",
+        "size": "XL",
+        "quantity": 20
+      },
+      {
+        "color": "White",
+        "size": "L",
+        "quantity": 50
+      },
+      {
+        "color": "White",
+        "size": "M",
+        "quantity": 40
+      },
+      {
+        "color": "White",
+        "size": "XL",
+        "quantity": 30
+      }
+    ]
+  },
+  {
+    "id": 5,
+    "name": "bootcut blue",
+    "description": "",
+    "price": 1200,
+    "category": "Bottom Wear",
+    "image_url": "/uploads/1792149413911-17953944.webp",
+    "created_at": "2026-10-16 11:12:19",
+    "discount_percent": 0,
+    "stock": [
+      {
+        "color": "blue",
+        "size": "L",
+        "quantity": 9
+      }
+    ]
+  },
+  {
+    "id": 3,
+    "name": "Slim Fit Mandarin Collar Shirt",
+    "description": "Contemporary slim fit casual mandarin collar shirt in pure cotton.",
+    "price": 1349,
+    "category": "Upper Wear",
+    "image_url": "/uploads/1792149428610-898887510.webp",
+    "created_at": "2026-10-16 10:55:13",
+    "discount_percent": 0,
+    "stock": []
+  },
+  {
+    "id": 2,
+    "name": "Luxury French Linen Shirt",
+    "description": "Handcrafted pure French flax linen shirt in rich navy blue. Breathable relaxed fit, pre-washed softness, and structured casual button-down collar.",
+    "price": 1899,
+    "category": "Upper Wear",
+    "image_url": "/uploads/premium_linen_shirt.jpg",
+    "created_at": "2026-10-16 10:50:58",
+    "discount_percent": 0,
+    "stock": [
+      {
+        "color": "Charcoal",
+        "size": "L",
+        "quantity": 5
+      },
+      {
+        "color": "Charcoal",
+        "size": "M",
+        "quantity": 15
+      },
+      {
+        "color": "Navy Blue",
+        "size": "L",
+        "quantity": 18
+      },
+      {
+        "color": "Navy Blue",
+        "size": "M",
+        "quantity": 20
+      },
+      {
+        "color": "Navy Blue",
+        "size": "S",
+        "quantity": 10
+      },
+      {
+        "color": "Navy Blue",
+        "size": "XL",
+        "quantity": 12
+      }
+    ]
+  },
+  {
+    "id": 1,
+    "name": "Classic Cotton Oxford Shirt",
+    "description": "Crisp 100% Egyptian cotton tailored formal shirt. Features mother-of-pearl buttons, breathable weave, and timeless spread collar.",
+    "price": 1499,
+    "category": "Upper Wear",
+    "image_url": "/uploads/classic_white_oxford.jpg",
+    "created_at": "2026-08-11 13:13:26",
+    "discount_percent": 0,
+    "stock": [
+      {
+        "color": "White",
+        "size": "L",
+        "quantity": 19
+      },
+      {
+        "color": "White",
+        "size": "M",
+        "quantity": 25
+      },
+      {
+        "color": "White",
+        "size": "S",
+        "quantity": 15
+      },
+      {
+        "color": "White",
+        "size": "XL",
+        "quantity": 12
+      }
+    ]
+  }
+]

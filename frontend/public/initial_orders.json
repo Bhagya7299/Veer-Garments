@@ -1,0 +1,72 @@
+[
+  {
+    "id": 2,
+    "customer_name": "Bhagya patel",
+    "customer_phone": "8349804494",
+    "customer_address": "01, bajna bus stand , ratlam",
+    "payment_method": "COD",
+    "payment_status": "Pending",
+    "order_status": "Received",
+    "total_amount": 12194,
+    "items": [
+      {
+        "product_id": 2,
+        "name": "Luxury French Linen Shirt",
+        "price": 1899,
+        "image_url": "/uploads/premium_linen_shirt.jpg",
+        "color": "Charcoal",
+        "size": "L",
+        "quantity": 5
+      },
+      {
+        "product_id": 5,
+        "name": "bootcut blue",
+        "price": 1200,
+        "image_url": "/uploads/1792149413911-17953944.webp",
+        "color": "blue",
+        "size": "L",
+        "quantity": 1
+      },
+      {
+        "product_id": 1,
+        "name": "Classic Cotton Oxford Shirt",
+        "price": 1499,
+        "image_url": "/uploads/classic_white_oxford.jpg",
+        "color": "White",
+        "size": "L",
+        "quantity": 1
+      }
+    ],
+    "payment_ref": null,
+    "created_at": "2026-11-06 11:44:06",
+    "user_id": 5,
+    "customer_email": "bhagyapatel7299@gmail.com",
+    "wallet_used": 0
+  },
+  {
+    "id": 1,
+    "customer_name": "bhagya patel",
+    "customer_phone": "8349804494",
+    "customer_address": "hello india",
+    "payment_method": "COD",
+    "payment_status": "Pending",
+    "order_status": "Received",
+    "total_amount": 1299,
+    "items": [
+      {
+        "product_id": 1,
+        "name": "Classic Cotton Shirt",
+        "price": 1299,
+        "image_url": null,
+        "color": "White",
+        "size": "M",
+        "quantity": 1
+      }
+    ],
+    "payment_ref": null,
+    "created_at": "2026-09-27 14:53:54",
+    "user_id": null,
+    "customer_email": null,
+    "wallet_used": 0
+  }
+]
