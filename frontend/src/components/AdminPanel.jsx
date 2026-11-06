@@ -1,5 +1,37 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Package, Edit, Trash2, ShoppingBag, DollarSign, List, Layers, Shield, RefreshCw, Wallet, Check, X, User, Phone, Mail, MapPin, Calendar, Hash, Search, Tag, Percent } from 'lucide-react';
+import { 
+  Plus, 
+  Package, 
+  Edit, 
+  Trash2, 
+  ShoppingBag, 
+  DollarSign, 
+  List, 
+  Layers, 
+  Shield, 
+  RefreshCw, 
+  Wallet, 
+  Check, 
+  X, 
+  User, 
+  Phone, 
+  Mail, 
+  MapPin, 
+  Calendar, 
+  Hash, 
+  Search, 
+  Tag, 
+  Percent,
+  ArrowLeft,
+  ChevronRight,
+  Shirt,
+  Scissors,
+  Box,
+  Sparkles,
+  Filter,
+  CheckCircle2,
+  AlertTriangle
+} from 'lucide-react';
 import { safeFetch, isStaticMode, localWalletManager } from '../utils/apiHelper';
 
 export default function AdminPanel({ products, orders, onRefreshData, API_BASE_URL, onBackToStore }) {
@@ -8,6 +40,14 @@ export default function AdminPanel({ products, orders, onRefreshData, API_BASE_U
   const [authError, setAuthError] = useState('');
 
   const [activeTab, setActiveTab] = useState('stock'); // stock, products, orders, wallet
+
+  // Multi-level Stock Management navigation states
+  // Level 1: stockSection === null (shows 3 Department Cards: Bottom Wear, Upper Wear, Undergarments)
+  // Level 2: stockSection !== null && selectedStockProductId === null (shows product list in that department)
+  // Level 3: selectedStockProductId !== null (shows individual product's variations to manage)
+  const [stockSection, setStockSection] = useState(null);
+  const [selectedStockProductId, setSelectedStockProductId] = useState(null);
+  const [stockSearchQuery, setStockSearchQuery] = useState('');
 
   // Top-Up verification requests state
   const [walletRequests, setWalletRequests] = useState([]);
@@ -34,6 +74,95 @@ export default function AdminPanel({ products, orders, onRefreshData, API_BASE_U
 
   // Orders search filter state
   const [orderSearch, setOrderSearch] = useState('');
+
+  // Safe image URL resolver for localhost and GitHub Pages
+  const getProductImage = (url) => {
+    if (!url) return null;
+    if (url.startsWith('http') || url.startsWith('data:')) return url;
+    if (API_BASE_URL && !window.location.hostname.includes('github.io')) {
+      return `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+    }
+    return url.startsWith('/') ? `.${url}` : `./${url}`;
+  };
+
+  // Categorize any product into the three primary sections
+  const getProductPrimarySection = (product) => {
+    if (!product) return 'Upper Wear';
+    const cat = (product.category || '').toLowerCase();
+    const name = (product.name || '').toLowerCase();
+    const desc = (product.description || '').toLowerCase();
+    const combined = `${cat} ${name} ${desc}`;
+
+    if (
+      cat.includes('under') || cat.includes('inner') || 
+      combined.includes('underwear') || combined.includes('vest') || 
+      combined.includes('sock') || combined.includes('hankey') || 
+      combined.includes('hanky') || combined.includes('handkerchief') ||
+      combined.includes('trunk') || combined.includes('brief')
+    ) {
+      return 'Under Garments';
+    }
+
+    if (
+      cat.includes('bottom') || cat.includes('pant') || 
+      combined.includes('pant') || combined.includes('lower') || 
+      combined.includes('bootcut') || combined.includes('baggie') || 
+      combined.includes('baggy') || combined.includes('trouser') || 
+      combined.includes('jean') || combined.includes('cargo') || 
+      combined.includes('trackpant')
+    ) {
+      return 'Bottom Wear';
+    }
+
+    return 'Upper Wear';
+  };
+
+  // Three primary sections metadata
+  const stockSectionsMeta = [
+    {
+      id: 'Bottom Wear',
+      name: 'Bottom Wear',
+      title: 'Bottom Wear Department',
+      subtitle: 'Pants • Baggie • Formal • Cargo • Lowers',
+      desc: 'Quickly adjust stock for baggy street cargos, tailored formal trousers, bootcut jeans, and everyday comfort lowers & trackpants.',
+      icon: Scissors,
+      accentColor: '#38bdf8',
+      accentBg: 'rgba(56, 189, 248, 0.12)',
+      borderColor: 'rgba(56, 189, 248, 0.35)'
+    },
+    {
+      id: 'Upper Wear',
+      name: 'Upper Wear',
+      title: 'Upper Wear Department',
+      subtitle: 'Shirts • T-Shirts • Polo • Down Shoulders',
+      desc: 'Quickly adjust stock for oversized drop-shoulder tees, double-knit pique polo t-shirts, pure cotton shirts & mandarin collars.',
+      icon: Shirt,
+      accentColor: '#fbbf24',
+      accentBg: 'rgba(212, 175, 55, 0.12)',
+      borderColor: 'rgba(212, 175, 55, 0.35)'
+    },
+    {
+      id: 'Under Garments',
+      name: 'Undergarments',
+      title: 'Undergarments Department',
+      subtitle: 'Underwear • Vests • Socks • Hankey Sets',
+      desc: 'Quickly adjust stock for combed cotton trunks, ribbed gym & daily vests, cushioned bamboo socks, and pure Egyptian hankey packs.',
+      icon: Box,
+      accentColor: '#c084fc',
+      accentBg: 'rgba(192, 132, 252, 0.12)',
+      borderColor: 'rgba(192, 132, 252, 0.35)'
+    }
+  ];
+
+  // Bulk stock adjust helper
+  const handleBulkStockAdjust = (product, delta) => {
+    if (!product || !product.stock) return;
+    product.stock.forEach(item => {
+      const currentQty = parseInt(item.quantity) || 0;
+      const newQty = delta === 'reset' ? 0 : Math.max(0, currentQty + delta);
+      handleUpdateStockQty(product.id, item.color, item.size, newQty);
+    });
+  };
 
   useEffect(() => {
     // Check if password already stored in sessionStorage
@@ -567,114 +696,724 @@ export default function AdminPanel({ products, orders, onRefreshData, API_BASE_U
       <main className="admin-main">
         
         {/* ======================================================== */}
-        {/* TAB 1: DAILY STOCK UPDATES */}
+        {/* TAB 1: DAILY STOCK UPDATES (3 SECTIONS DRILL-DOWN) */}
         {/* ======================================================== */}
-        {activeTab === 'stock' && (
-          <div className="animate-fade-in">
-            <div className="admin-header-row">
-              <div>
-                <h2 className="font-serif" style={{ fontSize: '2rem' }}>Daily Stock Adjustments</h2>
-                <p style={{ color: 'var(--text-muted)' }}>Quickly update available quantities for clothes, colors, and sizes.</p>
-              </div>
-              <button onClick={onRefreshData} className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1.2rem' }}>
-                <RefreshCw size={16} /> Sync Data
-              </button>
-            </div>
+        {activeTab === 'stock' && (() => {
+          // Find currently selected product (if in Level 3)
+          const currentSelectedProduct = selectedStockProductId 
+            ? products.find(p => p.id === selectedStockProductId)
+            : null;
 
-            <div className="glass-panel" style={{ padding: '1.5rem' }}>
-              <div className="admin-table-container">
-                <table className="admin-table">
-                  <thead>
-                    <tr>
-                      <th>Garment Name</th>
-                      <th>Category</th>
-                      <th>Color Variation</th>
-                      <th>Size</th>
-                      <th style={{ width: '180px' }}>Stock Quantity</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {products.length === 0 ? (
-                      <tr>
-                        <td colSpan="6" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '3rem' }}>
-                          No products found. Add products in the 'Garment Listings' tab to setup stock tracking.
-                        </td>
-                      </tr>
-                    ) : (
-                      products.flatMap(product => {
-                        const stockItems = product.stock || [];
-                        if (stockItems.length === 0) {
-                          return [
-                            <tr key={`${product.id}-no-stock`}>
-                              <td>{product.name}</td>
-                              <td><span className="badge badge-gold">{product.category}</span></td>
-                              <td colSpan="4" style={{ color: '#e74c3c', fontSize: '0.85rem' }}>
-                                No variations configured. Edit product to configure colors and sizes.
-                              </td>
-                            </tr>
-                          ];
-                        }
-                        
-                        return stockItems.map((item, idx) => (
-                          <tr key={`${product.id}-${item.color}-${item.size}-${idx}`}>
-                            {idx === 0 ? (
-                              <td rowSpan={stockItems.length} style={{ fontWeight: 600 }}>{product.name}</td>
-                            ) : null}
-                            {idx === 0 ? (
-                              <td rowSpan={stockItems.length}><span className="badge badge-gold">{product.category}</span></td>
-                            ) : null}
-                            <td>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <span className="color-dot" style={{ backgroundColor: item.color.toLowerCase() }} />
-                                {item.color}
-                              </div>
-                            </td>
-                            <td><strong>{item.size}</strong></td>
-                            <td>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <button 
-                                  onClick={() => handleUpdateStockQty(product.id, item.color, item.size, item.quantity - 1)}
-                                  className="quantity-btn"
-                                  style={{ border: '1px solid var(--border-light)', borderRadius: '4px' }}
-                                >
-                                  -
-                                </button>
-                                <input
-                                  type="number"
-                                  value={item.quantity}
-                                  onChange={(e) => handleUpdateStockQty(product.id, item.color, item.size, e.target.value)}
-                                  className="form-control"
-                                  style={{ width: '60px', padding: '0.3rem', textAlign: 'center' }}
-                                />
-                                <button 
-                                  onClick={() => handleUpdateStockQty(product.id, item.color, item.size, item.quantity + 1)}
-                                  className="quantity-btn"
-                                  style={{ border: '1px solid var(--border-light)', borderRadius: '4px' }}
-                                >
-                                  +
-                                </button>
-                              </div>
-                            </td>
-                            <td>
-                              {item.quantity <= 0 ? (
-                                <span className="badge badge-danger">Out of Stock</span>
-                              ) : item.quantity <= 5 ? (
-                                <span className="badge badge-gold">Low Stock</span>
-                              ) : (
-                                <span className="badge badge-success">In Stock</span>
-                              )}
-                            </td>
+          // LEVEL 3: Individual Product Stock Manager
+          if (selectedStockProductId && currentSelectedProduct) {
+            const stockItems = currentSelectedProduct.stock || [];
+            const totalProductUnits = stockItems.reduce((acc, item) => acc + (parseInt(item.quantity) || 0), 0);
+            const lowStockCount = stockItems.filter(item => (parseInt(item.quantity) || 0) > 0 && (parseInt(item.quantity) || 0) <= 5).length;
+            const outOfStockCount = stockItems.filter(item => (parseInt(item.quantity) || 0) <= 0).length;
+
+            return (
+              <div className="animate-fade-in">
+                {/* Navigation / Breadcrumb Header */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+                  <button 
+                    onClick={() => setSelectedStockProductId(null)} 
+                    className="btn-secondary" 
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.6rem', padding: '0.6rem 1.25rem', borderRadius: '8px' }}
+                  >
+                    <ArrowLeft size={16} />
+                    <span>Back to {stockSection} Products</span>
+                  </button>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.88rem', color: 'var(--text-muted)' }}>
+                    <span style={{ cursor: 'pointer' }} onClick={() => { setStockSection(null); setSelectedStockProductId(null); }}>
+                      Departments
+                    </span>
+                    <ChevronRight size={14} />
+                    <span style={{ cursor: 'pointer' }} onClick={() => setSelectedStockProductId(null)}>
+                      {stockSection}
+                    </span>
+                    <ChevronRight size={14} />
+                    <span style={{ color: 'var(--accent-gold)', fontWeight: 600 }}>{currentSelectedProduct.name}</span>
+                  </div>
+                </div>
+
+                {/* Product Banner Summary Card */}
+                <div className="glass-panel" style={{ padding: '1.75rem', marginBottom: '1.5rem', borderRadius: '14px', border: '1px solid rgba(212, 175, 55, 0.25)' }}>
+                  <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <div style={{ width: '85px', height: '105px', borderRadius: '10px', overflow: 'hidden', background: '#16161c', border: '1px solid rgba(255, 255, 255, 0.1)', flexShrink: 0 }}>
+                      {currentSelectedProduct.image_url ? (
+                        <img 
+                          src={getProductImage(currentSelectedProduct.image_url)} 
+                          alt={currentSelectedProduct.name} 
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                        />
+                      ) : (
+                        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Package size={28} color="var(--accent-gold)" />
+                        </div>
+                      )}
+                    </div>
+
+                    <div style={{ flex: 1, minWidth: '240px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.4rem', flexWrap: 'wrap' }}>
+                        <span className="badge badge-gold">{stockSection}</span>
+                        <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Item #{currentSelectedProduct.id}</span>
+                      </div>
+                      <h2 className="font-serif" style={{ fontSize: '1.65rem', marginBottom: '0.4rem', color: '#fff' }}>
+                        {currentSelectedProduct.name}
+                      </h2>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--accent-gold)' }}>
+                          ₹{currentSelectedProduct.price}
+                        </span>
+                        {currentSelectedProduct.discount_percent > 0 && (
+                          <span className="badge badge-gold" style={{ background: 'rgba(212, 175, 55, 0.2)' }}>
+                            {currentSelectedProduct.discount_percent}% OFF
+                          </span>
+                        )}
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                          {stockItems.length} Variations configured
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Quick KPI Counters */}
+                    <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                      <div style={{ padding: '0.85rem 1.25rem', background: 'rgba(255, 255, 255, 0.03)', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.06)', textAlign: 'center' }}>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total In-Stock</div>
+                        <div style={{ fontSize: '1.5rem', fontWeight: 700, color: totalProductUnits > 0 ? '#4ade80' : '#f87171', marginTop: '0.2rem' }}>
+                          {totalProductUnits} <span style={{ fontSize: '0.85rem', fontWeight: 400 }}>units</span>
+                        </div>
+                      </div>
+
+                      {outOfStockCount > 0 && (
+                        <div style={{ padding: '0.85rem 1.25rem', background: 'rgba(248, 113, 113, 0.08)', borderRadius: '10px', border: '1px solid rgba(248, 113, 113, 0.25)', textAlign: 'center' }}>
+                          <div style={{ fontSize: '0.75rem', color: '#f87171', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Out of Stock</div>
+                          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#f87171', marginTop: '0.2rem' }}>
+                            {outOfStockCount} <span style={{ fontSize: '0.85rem', fontWeight: 400 }}>sizes</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Quick Bulk Adjustments Bar */}
+                  {stockItems.length > 0 && (
+                    <div style={{ marginTop: '1.5rem', paddingTop: '1.25rem', borderTop: '1px solid rgba(255, 255, 255, 0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+                      <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <Sparkles size={14} color="var(--accent-gold)" />
+                        <span>Quick Bulk Stock Adjustments:</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+                        <button 
+                          onClick={() => handleBulkStockAdjust(currentSelectedProduct, 5)}
+                          className="btn-secondary" 
+                          style={{ padding: '0.4rem 0.85rem', fontSize: '0.82rem', borderRadius: '6px' }}
+                        >
+                          +5 to All Sizes
+                        </button>
+                        <button 
+                          onClick={() => handleBulkStockAdjust(currentSelectedProduct, 10)}
+                          className="btn-secondary" 
+                          style={{ padding: '0.4rem 0.85rem', fontSize: '0.82rem', borderRadius: '6px' }}
+                        >
+                          +10 to All Sizes
+                        </button>
+                        <button 
+                          onClick={() => {
+                            if (window.confirm(`Are you sure you want to set ALL sizes of "${currentSelectedProduct.name}" to 0?`)) {
+                              handleBulkStockAdjust(currentSelectedProduct, 'reset');
+                            }
+                          }}
+                          className="btn-secondary" 
+                          style={{ padding: '0.4rem 0.85rem', fontSize: '0.82rem', borderRadius: '6px', color: '#f87171', borderColor: 'rgba(248, 113, 113, 0.3)' }}
+                        >
+                          Reset All to 0
+                        </button>
+                        <button 
+                          onClick={onRefreshData} 
+                          className="btn-secondary" 
+                          style={{ padding: '0.4rem 0.85rem', fontSize: '0.82rem', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                        >
+                          <RefreshCw size={13} /> Refresh
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Stock Variations Table */}
+                <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: '14px' }}>
+                  <div style={{ marginBottom: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+                    <h3 className="font-serif" style={{ fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                      <Layers size={18} color="var(--accent-gold)" />
+                      Size & Color Quantities
+                    </h3>
+                    <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                      Updates save instantly without page reloads
+                    </span>
+                  </div>
+
+                  {stockItems.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '3.5rem 1.5rem', color: 'var(--text-muted)' }}>
+                      <AlertTriangle size={42} color="var(--accent-gold)" style={{ margin: '0 auto 1rem auto', opacity: 0.8 }} />
+                      <h4 style={{ fontSize: '1.15rem', color: '#fff', marginBottom: '0.5rem' }}>No Variations Configured</h4>
+                      <p style={{ maxWidth: '420px', margin: '0 auto 1.5rem auto', fontSize: '0.9rem' }}>
+                        This garment doesn't have any color or size variations yet. Add them in the Garment Listings tab to track stock.
+                      </p>
+                      <button 
+                        onClick={() => handleEditProduct(currentSelectedProduct)} 
+                        className="btn-primary"
+                        style={{ padding: '0.6rem 1.5rem' }}
+                      >
+                        Configure Variations in Listings →
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="admin-table-container">
+                      <table className="admin-table">
+                        <thead>
+                          <tr>
+                            <th>Color Variation</th>
+                            <th>Size</th>
+                            <th style={{ width: '260px' }}>Quantity Adjuster</th>
+                            <th>Available Units</th>
+                            <th>Inventory Status</th>
                           </tr>
-                        ));
-                      })
-                    )}
-                  </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                          {stockItems.map((item, idx) => {
+                            const qty = parseInt(item.quantity) || 0;
+                            return (
+                              <tr key={`${currentSelectedProduct.id}-${item.color}-${item.size}-${idx}`}>
+                                <td>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                                    <span 
+                                      className="color-dot" 
+                                      style={{ 
+                                        backgroundColor: (item.color || '#fff').toLowerCase().replace(' ', ''),
+                                        border: '1px solid rgba(255,255,255,0.2)',
+                                        width: '16px',
+                                        height: '16px',
+                                        borderRadius: '50%',
+                                        display: 'inline-block'
+                                      }} 
+                                    />
+                                    <span style={{ fontWeight: 600 }}>{item.color}</span>
+                                  </div>
+                                </td>
+                                <td>
+                                  <span style={{ 
+                                    padding: '0.35rem 0.8rem', 
+                                    background: 'rgba(255, 255, 255, 0.06)', 
+                                    borderRadius: '6px', 
+                                    fontWeight: 700, 
+                                    fontSize: '0.9rem',
+                                    letterSpacing: '0.5px',
+                                    border: '1px solid rgba(255, 255, 255, 0.1)'
+                                  }}>
+                                    {item.size}
+                                  </span>
+                                </td>
+                                <td>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <button 
+                                      onClick={() => handleUpdateStockQty(currentSelectedProduct.id, item.color, item.size, qty - 1)}
+                                      className="quantity-btn"
+                                      disabled={qty <= 0}
+                                      style={{ 
+                                        border: '1px solid var(--border-light)', 
+                                        borderRadius: '6px', 
+                                        width: '32px', 
+                                        height: '32px', 
+                                        background: 'rgba(255,255,255,0.05)',
+                                        color: qty <= 0 ? 'rgba(255,255,255,0.2)' : '#fff',
+                                        cursor: qty <= 0 ? 'not-allowed' : 'pointer'
+                                      }}
+                                    >
+                                      -
+                                    </button>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      value={item.quantity}
+                                      onChange={(e) => handleUpdateStockQty(currentSelectedProduct.id, item.color, item.size, e.target.value)}
+                                      className="form-control"
+                                      style={{ 
+                                        width: '65px', 
+                                        padding: '0.35rem', 
+                                        textAlign: 'center', 
+                                        borderRadius: '6px',
+                                        fontWeight: 700,
+                                        background: 'rgba(0,0,0,0.4)',
+                                        border: '1px solid rgba(212, 175, 55, 0.3)'
+                                      }}
+                                    />
+                                    <button 
+                                      onClick={() => handleUpdateStockQty(currentSelectedProduct.id, item.color, item.size, qty + 1)}
+                                      className="quantity-btn"
+                                      style={{ 
+                                        border: '1px solid var(--border-light)', 
+                                        borderRadius: '6px', 
+                                        width: '32px', 
+                                        height: '32px', 
+                                        background: 'rgba(255,255,255,0.05)',
+                                        color: '#fff',
+                                        cursor: 'pointer'
+                                      }}
+                                    >
+                                      +
+                                    </button>
+
+                                    {/* Quick Add Pills */}
+                                    <div style={{ display: 'flex', gap: '0.3rem', marginLeft: '0.5rem' }}>
+                                      <button
+                                        onClick={() => handleUpdateStockQty(currentSelectedProduct.id, item.color, item.size, qty + 1)}
+                                        style={{ padding: '0.2rem 0.45rem', fontSize: '0.72rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', color: 'var(--text-muted)', cursor: 'pointer' }}
+                                      >
+                                        +1
+                                      </button>
+                                      <button
+                                        onClick={() => handleUpdateStockQty(currentSelectedProduct.id, item.color, item.size, qty + 5)}
+                                        style={{ padding: '0.2rem 0.45rem', fontSize: '0.72rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', color: 'var(--text-muted)', cursor: 'pointer' }}
+                                      >
+                                        +5
+                                      </button>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td>
+                                  <span style={{ fontWeight: 700, fontSize: '1rem', color: qty > 0 ? '#fff' : '#f87171' }}>
+                                    {qty} <span style={{ fontSize: '0.8rem', fontWeight: 400, color: 'var(--text-muted)' }}>pcs</span>
+                                  </span>
+                                </td>
+                                <td>
+                                  {qty <= 0 ? (
+                                    <span className="badge badge-danger" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                                      <AlertTriangle size={12} /> Out of Stock
+                                    </span>
+                                  ) : qty <= 5 ? (
+                                    <span className="badge badge-gold" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                                      Low Stock ({qty} left)
+                                    </span>
+                                  ) : (
+                                    <span className="badge badge-success" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                                      <CheckCircle2 size={12} /> In Stock
+                                    </span>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          }
+
+          // LEVEL 2: Section Product List (e.g. Bottom Wear clicked)
+          if (stockSection) {
+            const meta = stockSectionsMeta.find(m => m.id === stockSection) || stockSectionsMeta[0];
+            const sectionProducts = products.filter(p => getProductPrimarySection(p) === stockSection);
+            
+            const filteredProducts = sectionProducts.filter(p => {
+              if (!stockSearchQuery.trim()) return true;
+              const q = stockSearchQuery.toLowerCase();
+              const name = (p.name || '').toLowerCase();
+              const cat = (p.category || '').toLowerCase();
+              const desc = (p.description || '').toLowerCase();
+              return name.includes(q) || cat.includes(q) || desc.includes(q);
+            });
+
+            const totalSectionUnits = sectionProducts.reduce((sum, p) => 
+              sum + (p.stock || []).reduce((s, item) => s + (parseInt(item.quantity) || 0), 0), 0
+            );
+
+            return (
+              <div className="animate-fade-in">
+                {/* Navigation & Header */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
+                  <button 
+                    onClick={() => { setStockSection(null); setSelectedStockProductId(null); setStockSearchQuery(''); }} 
+                    className="btn-secondary" 
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.6rem', padding: '0.6rem 1.25rem', borderRadius: '8px' }}
+                  >
+                    <ArrowLeft size={16} />
+                    <span>Back to All Departments</span>
+                  </button>
+
+                  {/* Department Quick Switcher Pills */}
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    {stockSectionsMeta.map(sec => {
+                      const count = products.filter(p => getProductPrimarySection(p) === sec.id).length;
+                      const isActive = sec.id === stockSection;
+                      return (
+                        <button
+                          key={sec.id}
+                          onClick={() => { setStockSection(sec.id); setSelectedStockProductId(null); }}
+                          style={{
+                            padding: '0.45rem 0.9rem',
+                            borderRadius: '8px',
+                            fontSize: '0.82rem',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            background: isActive ? sec.accentBg : 'rgba(255, 255, 255, 0.03)',
+                            color: isActive ? sec.accentColor : 'var(--text-muted)',
+                            border: `1px solid ${isActive ? sec.borderColor : 'rgba(255, 255, 255, 0.08)'}`
+                          }}
+                        >
+                          {sec.name} ({count})
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Section Banner */}
+                <div className="glass-panel" style={{ padding: '1.75rem', marginBottom: '1.75rem', borderRadius: '14px', border: `1px solid ${meta.borderColor}`, background: `linear-gradient(135deg, ${meta.accentBg} 0%, rgba(14, 14, 18, 0.6) 100%)` }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1.5rem' }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
+                        <span className="badge badge-gold" style={{ background: meta.accentBg, color: meta.accentColor, borderColor: meta.borderColor }}>
+                          {meta.name} Department
+                        </span>
+                        <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{meta.subtitle}</span>
+                      </div>
+                      <h2 className="font-serif" style={{ fontSize: '2rem', marginBottom: '0.4rem', color: '#fff' }}>
+                        {meta.name} Stock Management
+                      </h2>
+                      <p style={{ color: 'var(--text-muted)', fontSize: '0.92rem', maxWidth: '680px', lineHeight: 1.5 }}>
+                        {meta.desc}
+                      </p>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                      <div style={{ padding: '0.85rem 1.25rem', background: 'rgba(0,0,0,0.3)', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.08)', textAlign: 'center' }}>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Garments Listed</div>
+                        <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#fff', marginTop: '0.2rem' }}>
+                          {sectionProducts.length}
+                        </div>
+                      </div>
+
+                      <div style={{ padding: '0.85rem 1.25rem', background: 'rgba(0,0,0,0.3)', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.08)', textAlign: 'center' }}>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total In Stock</div>
+                        <div style={{ fontSize: '1.5rem', fontWeight: 700, color: meta.accentColor, marginTop: '0.2rem' }}>
+                          {totalSectionUnits} <span style={{ fontSize: '0.8rem', fontWeight: 400 }}>pcs</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Search Bar inside Section */}
+                  <div style={{ marginTop: '1.5rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                    <div style={{ position: 'relative', flex: 1 }}>
+                      <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                      <input
+                        type="text"
+                        value={stockSearchQuery}
+                        onChange={(e) => setStockSearchQuery(e.target.value)}
+                        placeholder={`Search in ${meta.name} (e.g. pant, baggie, cargo, formal, lower)...`}
+                        className="form-control"
+                        style={{ paddingLeft: '2.8rem', borderRadius: '10px', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255, 255, 255, 0.12)' }}
+                      />
+                      {stockSearchQuery && (
+                        <button
+                          onClick={() => setStockSearchQuery('')}
+                          style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+                        >
+                          <X size={16} />
+                        </button>
+                      )}
+                    </div>
+
+                    <button onClick={onRefreshData} className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.7rem 1.2rem', borderRadius: '10px' }}>
+                      <RefreshCw size={16} /> Sync
+                    </button>
+                  </div>
+                </div>
+
+                {/* Product Cards Grid in this section */}
+                {filteredProducts.length === 0 ? (
+                  <div className="glass-panel" style={{ padding: '3.5rem', textAlign: 'center', color: 'var(--text-muted)', borderRadius: '14px' }}>
+                    <Package size={44} color="var(--accent-gold)" style={{ margin: '0 auto 1rem auto', opacity: 0.6 }} />
+                    <h3 style={{ color: '#fff', fontSize: '1.2rem', marginBottom: '0.5rem' }}>No Garments Found</h3>
+                    <p style={{ maxWidth: '400px', margin: '0 auto', fontSize: '0.9rem' }}>
+                      {stockSearchQuery ? `No products match "${stockSearchQuery}". Try clearing search.` : `No products found in ${stockSection}.`}
+                    </p>
+                  </div>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '1.25rem' }}>
+                    {filteredProducts.map(product => {
+                      const stockItems = product.stock || [];
+                      const totalQty = stockItems.reduce((acc, item) => acc + (parseInt(item.quantity) || 0), 0);
+                      
+                      // Colors & sizes overview
+                      const uniqueColors = [...new Set(stockItems.map(s => s.color).filter(Boolean))];
+                      const uniqueSizes = [...new Set(stockItems.map(s => s.size).filter(Boolean))];
+
+                      return (
+                        <div
+                          key={product.id}
+                          onClick={() => setSelectedStockProductId(product.id)}
+                          className="glass-panel"
+                          style={{
+                            padding: '1.25rem',
+                            borderRadius: '12px',
+                            border: '1px solid rgba(255, 255, 255, 0.08)',
+                            cursor: 'pointer',
+                            transition: 'all 0.22s ease',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                            position: 'relative'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.borderColor = meta.accentColor;
+                            e.currentTarget.style.transform = 'translateY(-2px)';
+                            e.currentTarget.style.boxShadow = `0 8px 24px rgba(0,0,0,0.35)`;
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.boxShadow = 'none';
+                          }}
+                        >
+                          <div style={{ display: 'flex', gap: '1.15rem' }}>
+                            {/* Thumbnail */}
+                            <div style={{ width: '85px', height: '105px', borderRadius: '8px', overflow: 'hidden', background: '#16161c', border: '1px solid rgba(255, 255, 255, 0.1)', flexShrink: 0 }}>
+                              {product.image_url ? (
+                                <img 
+                                  src={getProductImage(product.image_url)} 
+                                  alt={product.name} 
+                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                                />
+                              ) : (
+                                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                  <Package size={26} color="var(--accent-gold)" />
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Details */}
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem', flexWrap: 'wrap' }}>
+                                <span className="badge badge-gold" style={{ fontSize: '0.72rem', padding: '0.2rem 0.5rem' }}>
+                                  {product.category}
+                                </span>
+                                {product.discount_percent > 0 && (
+                                  <span className="badge badge-gold" style={{ fontSize: '0.72rem', padding: '0.2rem 0.5rem', background: 'rgba(212, 175, 55, 0.25)' }}>
+                                    {product.discount_percent}% OFF
+                                  </span>
+                                )}
+                              </div>
+
+                              <h4 style={{ fontSize: '1.05rem', fontWeight: 600, color: '#fff', marginBottom: '0.4rem', lineHeight: 1.35 }}>
+                                {product.name}
+                              </h4>
+
+                              <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--accent-gold)', marginBottom: '0.6rem' }}>
+                                ₹{product.price}
+                              </div>
+
+                              {/* Sizes & Colors Pill Preview */}
+                              <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                                {uniqueSizes.slice(0, 4).map(s => (
+                                  <span key={s} style={{ fontSize: '0.72rem', padding: '0.15rem 0.4rem', background: 'rgba(255,255,255,0.06)', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                                    {s}
+                                  </span>
+                                ))}
+                                {uniqueSizes.length > 4 && (
+                                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>+{uniqueSizes.length - 4} sizes</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Bottom Action Footer */}
+                          <div style={{ marginTop: '1.1rem', paddingTop: '0.85rem', borderTop: '1px solid rgba(255, 255, 255, 0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div>
+                              {totalQty <= 0 ? (
+                                <span className="badge badge-danger" style={{ fontSize: '0.78rem' }}>
+                                  🔴 Out of Stock
+                                </span>
+                              ) : totalQty <= 5 ? (
+                                <span className="badge badge-gold" style={{ fontSize: '0.78rem' }}>
+                                  🟡 Low Stock ({totalQty} left)
+                                </span>
+                              ) : (
+                                <span className="badge badge-success" style={{ fontSize: '0.78rem' }}>
+                                  🟢 {totalQty} Units In Stock
+                                </span>
+                              )}
+                            </div>
+
+                            <button 
+                              className="btn-secondary" 
+                              style={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: '0.4rem', 
+                                fontSize: '0.82rem', 
+                                padding: '0.4rem 0.85rem',
+                                color: meta.accentColor,
+                                borderColor: meta.borderColor
+                              }}
+                            >
+                              <span>Manage Stock</span>
+                              <ChevronRight size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          }
+
+          // LEVEL 1: The Three Departments View (Bottom Wear, Upper Wear, Undergarments)
+          return (
+            <div className="animate-fade-in">
+              <div className="admin-header-row">
+                <div>
+                  <h2 className="font-serif" style={{ fontSize: '2rem' }}>Daily Stock Updates</h2>
+                  <p style={{ color: 'var(--text-muted)' }}>
+                    Select a garment department below to view styles and update stock quantities.
+                  </p>
+                </div>
+                <button onClick={onRefreshData} className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1.2rem', borderRadius: '8px' }}>
+                  <RefreshCw size={16} /> Sync Data
+                </button>
+              </div>
+
+              {/* The Three Department Luxury Cards Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.75rem', marginTop: '1rem' }}>
+                {stockSectionsMeta.map(sec => {
+                  const SecIcon = sec.icon;
+                  const sectionProducts = products.filter(p => getProductPrimarySection(p) === sec.id);
+                  const totalUnits = sectionProducts.reduce((sum, p) => 
+                    sum + (p.stock || []).reduce((s, item) => s + (parseInt(item.quantity) || 0), 0), 0
+                  );
+                  const outOfStockVariations = sectionProducts.reduce((sum, p) => 
+                    sum + (p.stock || []).filter(item => (parseInt(item.quantity) || 0) <= 0).length, 0
+                  );
+
+                  return (
+                    <div
+                      key={sec.id}
+                      onClick={() => { setStockSection(sec.id); setSelectedStockProductId(null); setStockSearchQuery(''); }}
+                      className="glass-panel"
+                      style={{
+                        padding: '2rem',
+                        borderRadius: '16px',
+                        border: `1px solid ${sec.borderColor}`,
+                        background: `linear-gradient(135deg, ${sec.accentBg} 0%, rgba(14, 14, 18, 0.7) 100%)`,
+                        cursor: 'pointer',
+                        transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        position: 'relative',
+                        overflow: 'hidden'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'translateY(-4px)';
+                        e.currentTarget.style.borderColor = sec.accentColor;
+                        e.currentTarget.style.boxShadow = `0 14px 34px rgba(0,0,0,0.45)`;
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.borderColor = sec.borderColor;
+                        e.currentTarget.style.boxShadow = 'none';
+                      }}
+                    >
+                      <div>
+                        {/* Department Icon & Badge */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+                          <div style={{
+                            width: '56px',
+                            height: '56px',
+                            borderRadius: '14px',
+                            background: sec.accentBg,
+                            border: `1px solid ${sec.borderColor}`,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: sec.accentColor
+                          }}>
+                            <SecIcon size={28} />
+                          </div>
+
+                          <span className="badge badge-gold" style={{ background: sec.accentBg, color: sec.accentColor, borderColor: sec.borderColor, fontSize: '0.78rem' }}>
+                            {sectionProducts.length} Garments
+                          </span>
+                        </div>
+
+                        {/* Title & Subtitle */}
+                        <h3 className="font-serif" style={{ fontSize: '1.65rem', marginBottom: '0.35rem', color: '#fff' }}>
+                          {sec.name}
+                        </h3>
+                        <div style={{ fontSize: '0.82rem', color: sec.accentColor, fontWeight: 600, letterSpacing: '0.3px', marginBottom: '0.9rem' }}>
+                          {sec.subtitle}
+                        </div>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', lineHeight: 1.55, marginBottom: '1.5rem' }}>
+                          {sec.desc}
+                        </p>
+                      </div>
+
+                      {/* Card Footer: Metrics & Action Button */}
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.85rem 1rem', background: 'rgba(0,0,0,0.3)', borderRadius: '10px', marginBottom: '1.25rem', border: '1px solid rgba(255,255,255,0.06)' }}>
+                          <div>
+                            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block' }}>Total In Stock</span>
+                            <strong style={{ fontSize: '1.15rem', color: '#fff' }}>{totalUnits} <span style={{ fontSize: '0.8rem', fontWeight: 400 }}>pcs</span></strong>
+                          </div>
+
+                          {outOfStockVariations > 0 ? (
+                            <span style={{ fontSize: '0.78rem', color: '#f87171', background: 'rgba(248, 113, 113, 0.1)', padding: '0.3rem 0.6rem', borderRadius: '6px', border: '1px solid rgba(248, 113, 113, 0.25)' }}>
+                              ⚠️ {outOfStockVariations} out of stock
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: '0.78rem', color: '#4ade80', background: 'rgba(74, 222, 128, 0.1)', padding: '0.3rem 0.6rem', borderRadius: '6px', border: '1px solid rgba(74, 222, 128, 0.25)' }}>
+                              ✓ All sizes in stock
+                            </span>
+                          )}
+                        </div>
+
+                        <button
+                          className="btn-primary"
+                          style={{
+                            width: '100%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '0.6rem',
+                            padding: '0.75rem',
+                            borderRadius: '10px',
+                            fontWeight: 600,
+                            fontSize: '0.92rem',
+                            background: `linear-gradient(135deg, ${sec.accentColor} 0%, rgba(212, 175, 55, 0.8) 100%)`,
+                            color: '#0a0a0c',
+                            border: 'none',
+                            boxShadow: '0 4px 14px rgba(0,0,0,0.25)'
+                          }}
+                        >
+                          <span>Open {sec.name}</span>
+                          <ChevronRight size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* ======================================================== */}
         {/* TAB 2: PRODUCT LISTINGS & CREATION */}
