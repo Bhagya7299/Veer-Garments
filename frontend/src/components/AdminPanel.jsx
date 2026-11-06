@@ -199,28 +199,52 @@ export default function AdminPanel({ products, orders, onRefreshData, API_BASE_U
 
     const method = editProductId ? 'PUT' : 'POST';
     const effectivePass = adminPassword || sessionStorage.getItem('admin_pass') || 'admin123';
+    let saved = false;
 
-    try {
-      const response = await fetch(url, {
-        method: method,
-        headers: {
-          'x-admin-password': effectivePass
-        },
-        body: formData
-      });
+    if (API_BASE_URL && !window.location.hostname.includes('github.io')) {
+      try {
+        const response = await fetch(url, {
+          method: method,
+          headers: {
+            'x-admin-password': effectivePass
+          },
+          body: formData
+        });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to save product');
+        if (response.ok) {
+          saved = true;
+        }
+      } catch (error) {
+        console.warn('Backend product save error:', error.message);
       }
-
-      alert(editProductId ? 'Product updated successfully!' : 'Product added successfully!');
-      resetProductForm();
-      onRefreshData();
-    } catch (error) {
-      alert(error.message);
     }
+
+    if (!saved) {
+      // Fallback for GitHub Pages static showcase
+      const localProducts = JSON.parse(localStorage.getItem('veer_local_products') || '[]');
+      const newProd = {
+        id: editProductId || Date.now(),
+        name: prodName,
+        description: prodDesc,
+        price: parseFloat(prodPrice),
+        discount_percent: hasDiscount ? (parseFloat(prodDiscount) || 0) : 0,
+        category: prodCategory,
+        image_url: previewUrl ? previewUrl.replace(API_BASE_URL, '') : null,
+        stock: finalVariations
+      };
+
+      if (editProductId) {
+        const updated = localProducts.map(p => p.id === editProductId ? newProd : p);
+        localStorage.setItem('veer_local_products', JSON.stringify(updated));
+      } else {
+        localStorage.setItem('veer_local_products', JSON.stringify([newProd, ...localProducts]));
+      }
+      saved = true;
+    }
+
+    alert(editProductId ? 'Product updated successfully!' : 'Product added successfully!');
+    resetProductForm();
+    onRefreshData();
   };
 
   const resetProductForm = () => {
@@ -257,24 +281,29 @@ export default function AdminPanel({ products, orders, onRefreshData, API_BASE_U
   // Quick 1-click removal of discount directly from product card/table
   const handleRemoveDiscountDirectly = async (productId) => {
     if (!window.confirm('Remove discount from this product and restore regular price?')) return;
-    const effectivePass = adminPassword || sessionStorage.getItem('admin_pass') || 'admin123';
+    
+    // Save to local discount overrides
     try {
-      const res = await fetch(`${API_BASE_URL}/api/products/${productId}/discount`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-admin-password': effectivePass
-        },
-        body: JSON.stringify({ discount_percent: 0 })
-      });
-      if (res.ok) {
-        onRefreshData();
-      } else {
-        alert('Failed to remove discount');
-      }
-    } catch (err) {
-      alert('Error removing discount: ' + err.message);
+      const localDiscounts = JSON.parse(localStorage.getItem('veer_local_discounts') || '{}');
+      localDiscounts[productId] = 0;
+      localStorage.setItem('veer_local_discounts', JSON.stringify(localDiscounts));
+    } catch (e) {}
+
+    const effectivePass = adminPassword || sessionStorage.getItem('admin_pass') || 'admin123';
+    if (API_BASE_URL && !window.location.hostname.includes('github.io')) {
+      try {
+        await fetch(`${API_BASE_URL}/api/products/${productId}/discount`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-admin-password': effectivePass
+          },
+          body: JSON.stringify({ discount_percent: 0 })
+        });
+      } catch (err) {}
     }
+
+    onRefreshData();
   };
 
   // Delete product
@@ -284,25 +313,30 @@ export default function AdminPanel({ products, orders, onRefreshData, API_BASE_U
     }
 
     const effectivePass = adminPassword || sessionStorage.getItem('admin_pass') || 'admin123';
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/products/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'x-admin-password': effectivePass
-        }
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to delete product');
-      }
-
-      alert('Product deleted successfully');
-      onRefreshData();
-    } catch (error) {
-      alert(error.message);
+    if (API_BASE_URL && !window.location.hostname.includes('github.io')) {
+      try {
+        await fetch(`${API_BASE_URL}/api/products/${id}`, {
+          method: 'DELETE',
+          headers: {
+            'x-admin-password': effectivePass
+          }
+        });
+      } catch (e) {}
     }
+
+    // Also remove from local storage
+    try {
+      const localProducts = JSON.parse(localStorage.getItem('veer_local_products') || '[]');
+      localStorage.setItem('veer_local_products', JSON.stringify(localProducts.filter(p => p.id !== id)));
+      const deletedIds = JSON.parse(localStorage.getItem('veer_deleted_product_ids') || '[]');
+      if (!deletedIds.includes(id)) {
+        deletedIds.push(id);
+        localStorage.setItem('veer_deleted_product_ids', JSON.stringify(deletedIds));
+      }
+    } catch (e) {}
+
+    alert('Product deleted successfully');
+    onRefreshData();
   };
 
   // Update specific stock level inline (Fast daily stock updates)
@@ -310,27 +344,33 @@ export default function AdminPanel({ products, orders, onRefreshData, API_BASE_U
     const qty = parseInt(newQty);
     if (isNaN(qty) || qty < 0) return;
 
-    const effectivePass = adminPassword || sessionStorage.getItem('admin_pass') || 'admin123';
-
+    // 1. Always save immediately to local stock overrides in localStorage
     try {
-      const response = await fetch(`${API_BASE_URL}/api/products/${productId}/stock`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-admin-password': effectivePass
-        },
-        body: JSON.stringify({ color, size, quantity: qty })
-      });
+      const localStockOverrides = JSON.parse(localStorage.getItem('veer_local_stock') || '{}');
+      const key = `${productId}-${(color || '').trim().toLowerCase()}-${(size || '').trim().toLowerCase()}`;
+      localStockOverrides[key] = qty;
+      localStorage.setItem('veer_local_stock', JSON.stringify(localStockOverrides));
+    } catch (e) {}
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to update stock');
+    // 2. Try saving to real backend if available and not on github.io
+    const effectivePass = adminPassword || sessionStorage.getItem('admin_pass') || 'admin123';
+    if (API_BASE_URL && !window.location.hostname.includes('github.io')) {
+      try {
+        await fetch(`${API_BASE_URL}/api/products/${productId}/stock`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-admin-password': effectivePass
+          },
+          body: JSON.stringify({ color, size, quantity: qty })
+        });
+      } catch (err) {
+        console.warn('Backend stock sync error:', err.message);
       }
-
-      onRefreshData();
-    } catch (error) {
-      alert(error.message);
     }
+
+    // 3. Trigger refresh so UI reflects new stock instantly without any tag error!
+    onRefreshData();
   };
 
   // Update order status

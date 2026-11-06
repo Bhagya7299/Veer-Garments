@@ -171,7 +171,30 @@ export default function App() {
           if (staticRes.ok) {
             const staticData = await staticRes.json();
             const localProducts = JSON.parse(localStorage.getItem('veer_local_products') || '[]');
-            setProducts([...localProducts, ...staticData]);
+            const localStockOverrides = JSON.parse(localStorage.getItem('veer_local_stock') || '{}');
+            const localDiscountOverrides = JSON.parse(localStorage.getItem('veer_local_discounts') || '{}');
+            const deletedIds = JSON.parse(localStorage.getItem('veer_deleted_product_ids') || '[]');
+
+            const allBase = [...localProducts, ...staticData].filter(p => !deletedIds.includes(p.id));
+
+            const mergedProducts = allBase.map(p => {
+              let updatedP = { ...p };
+              if (localDiscountOverrides[p.id] !== undefined) {
+                updatedP.discount_percent = localDiscountOverrides[p.id];
+              }
+              if (updatedP.stock && Array.isArray(updatedP.stock)) {
+                updatedP.stock = updatedP.stock.map(s => {
+                  const key = `${p.id}-${(s.color || '').trim().toLowerCase()}-${(s.size || '').trim().toLowerCase()}`;
+                  if (localStockOverrides[key] !== undefined) {
+                    return { ...s, quantity: localStockOverrides[key] };
+                  }
+                  return s;
+                });
+              }
+              return updatedP;
+            });
+
+            setProducts(mergedProducts);
           }
         } catch (err) {
           console.error('Could not load static products.json:', err);
